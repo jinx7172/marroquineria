@@ -9,20 +9,48 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'clave_super_secreta_marcani_2024'
 
-# --- CONFIGURACIÓN ---
-DATA_DIR = 'data'
+# --- CONFIGURACIÓN CON RUTAS ABSOLUTAS ---
+# Obtenemos la ruta exacta donde está instalada la app en Render
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+
+# Configuración de subida de imágenes
 if os.environ.get('RENDER'):
-    UPLOAD_FOLDER = '/tmp/uploads'
+    UPLOAD_FOLDER = '/tmp/uploads'  # Render permite escritura aquí
 else:
-    UPLOAD_FOLDER = os.path.join('static', 'uploads')
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30)
 
-if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
-if not os.path.exists(UPLOAD_FOLDER): os.makedirs(UPLOAD_FOLDER)
+# --- CREACIÓN FORZADA DE CARPETAS Y ARCHIVOS AL INICIAR ---
+def initialize_files():
+    """Asegura que todas las carpetas y archivos JSON existan al arrancar."""
+    # 1. Crear carpeta de datos
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+        print(f"✅ Carpeta creada: {DATA_DIR}")
+
+    # 2. Crear carpeta de uploads
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+        print(f"✅ Carpeta creada: {UPLOAD_FOLDER}")
+
+    # 3. Crear archivos JSON vacíos si no existen
+    json_files = ['clientes.json', 'productos.json', 'empleados.json', 
+                  'proveedores.json', 'inventario.json', 'ventas.json', 'usuarios.json']
+    
+    for filename in json_files:
+        filepath = os.path.join(DATA_DIR, filename)
+        if not os.path.exists(filepath):
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump([], f)  # Escribimos una lista vacía
+            print(f"✅ Archivo creado: {filename}")
+
+# Ejecutar la inicialización
+initialize_files()
 
 # --- FUNCIONES AUXILIARES ---
 def allowed_file(filename):
@@ -46,7 +74,7 @@ def save_data(filename, data):
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
     except Exception as e:
-        print(f"Error guardando {filename}: {e}")
+        print(f"❌ Error guardando {filename}: {e}")
 
 # --- DECORADOR PARA PROTEGER RUTAS ---
 def login_required(f):
@@ -57,7 +85,7 @@ def login_required(f):
     wrap.__name__ = f.__name__
     return wrap
 
-# --- RUTAS DE AUTENTICACIÓN (SIN FLASH) ---
+# --- RUTAS DE AUTENTICACIÓN ---
 @app.route('/registro', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -138,7 +166,7 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# --- RUTAS DEL SISTEMA (PROTEGIDAS) ---
+# --- RUTAS DEL SISTEMA ---
 @app.route('/')
 @login_required
 def home():
@@ -410,11 +438,10 @@ def serve_manifest(): return app.send_static_file('manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return app.send_static_file('sw.js')
 
-# --- RUTA PARA LLENAR DATOS DE EJEMPLO (PRODUCTOS ELIMINADOS) ---
+# --- RUTA PARA LLENAR DATOS DE EJEMPLO ---
 @app.route('/seed_database')
 @login_required
 def seed_database():
-    # 1. Llenar Clientes
     clientes = load_data('clientes.json')
     if not clientes:
         clientes_data = [
@@ -426,7 +453,6 @@ def seed_database():
         ]
         save_data('clientes.json', clientes_data)
 
-    # 2. Llenar Empleados
     empleados = load_data('empleados.json')
     if not empleados:
         empleados_data = [
@@ -437,7 +463,6 @@ def seed_database():
         ]
         save_data('empleados.json', empleados_data)
 
-    # 3. Llenar Proveedores
     proveedores = load_data('proveedores.json')
     if not proveedores:
         proveedores_data = [
@@ -448,9 +473,9 @@ def seed_database():
         ]
         save_data('proveedores.json', proveedores_data)
 
-    # (Productos e Inventario han sido ELIMINADOS completamente de esta función)
-
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    # Esta línea hace que Flask entienda que debe escuchar en el puerto que Render le asigne
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
