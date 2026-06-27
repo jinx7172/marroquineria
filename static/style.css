@@ -453,61 +453,143 @@ tr:hover td {
     background: #fff;
 }
 
-/* --- ESTILOS PARA LOGIN Y REGISTRO --- */
+/* --- ESTILOS PARA LOGIN Y REGISTRO (CORREGIDO) --- */
 .auth-container {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     background: linear-gradient(135deg, #1a252f 0%, #34495e 100%);
-    padding: 15px; /* Reducido de 20px */
+    padding: 15px;
 }
 
 .auth-card {
     background: white;
-    padding: 25px; /* Reducido de 40px */
+    padding: 30px 25px;
     border-radius: 16px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     width: 100%;
-    max-width: 400px; /* Reducido de 450px */
-    max-height: 95vh; /* Evita que se salga de la pantalla */
+    max-width: 400px;
+    max-height: 98vh;
     overflow-y: auto; /* Permite hacer scroll si el teclado sale */
+    position: relative;
 }
 
 .auth-card h2 {
     color: var(--text-main);
     text-align: center;
-    margin-bottom: 5px; /* Reducido */
-    font-size: 1.4rem;
+    margin-bottom: 5px;
+    font-size: 1.5rem;
 }
 
 .auth-card .subtitle {
     text-align: center;
     color: var(--text-light);
     margin-bottom: 15px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
+}
+
+/* Mensajes Flash */
+.alert-flash {
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.alert-flash.success {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.alert-flash.error {
+    background: #fde8e8;
+    color: #c53030;
+    border: 1px solid #f5c6cb;
 }
 
 .auth-card .form-group {
-    margin-bottom: 12px; /* Reducido de 20px */
+    margin-bottom: 15px;
     position: relative;
 }
 
 .auth-card .form-group label {
     display: block;
     font-weight: 600;
-    margin-bottom: 3px;
-    font-size: 0.8rem;
+    margin-bottom: 5px;
+    font-size: 0.85rem;
+    color: #2c3e50;
 }
 
 .auth-card .form-group input {
     width: 100%;
-    padding: 10px 12px; /* Botones más pequeños */
+    padding: 10px 15px;
     border: 1px solid #d1d5db;
     border-radius: 8px;
-    font-size: 0.9rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.95rem;
+    transition: border-color 0.3s;
+    box-sizing: border-box; /* Para que el padding no desborde */
+    background: #f9fafb;
 }
 
+.auth-card .form-group input:focus {
+    border-color: var(--accent-color);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    background: #ffffff;
+}
+
+/* Contenedor para el ojo de la contraseña */
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #7f8c8d;
+    font-size: 1.1rem;
+    user-select: none;
+    background: transparent;
+    z-index: 10;
+    line-height: 1;
+}
+
+/* Estilo del Recordarme */
+.auth-card .form-check {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.auth-card .form-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--accent-color);
+}
+
+.auth-card .form-check label {
+    margin: 0;
+    font-weight: normal;
+    font-size: 0.9rem;
+    cursor: pointer;
+    color: #2c3e50;
+}
+
+/* Botón de Entrar */
 .auth-card .btn-auth {
     width: 100%;
     padding: 12px;
@@ -515,7 +597,31 @@ tr:hover td {
     color: white;
     border: none;
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
     margin-top: 5px;
+}
+
+.auth-card .btn-auth:hover {
+    background: var(--accent-hover);
+}
+
+/* Footer de registro */
+.auth-card .auth-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+.auth-card .auth-footer a {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-card .auth-footer a:hover {
+    text-decoration: underline;
 }
