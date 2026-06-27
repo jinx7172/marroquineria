@@ -11,34 +11,28 @@
     <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Nuevo Producto</h3>
     <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="accion" value="crear">
-        
         <div class="input-group">
             <label>Nombre *</label>
             <input type="text" name="nombre_producto" placeholder="Ej: Cinturón de Cuero" required>
         </div>
-        
         <div class="input-group">
             <label>Precio ($) *</label>
             <input type="number" step="0.01" min="0.01" name="precio" placeholder="0.00" required>
         </div>
-        
         <div class="input-group">
             <label>Stock Inicial *</label>
             <input type="number" min="0" name="stock" placeholder="0" required>
         </div>
-
         <div class="input-group" style="flex: 2;">
             <label>Imagen (Subir desde PC)</label>
             <div class="file-upload-wrapper">
                 <input type="file" name="imagen_file" accept="image/png, image/jpeg, image/gif">
             </div>
         </div>
-
         <div class="input-group" style="flex: 2;">
             <label>O pegar URL de imagen</label>
             <input type="url" name="imagen_url" placeholder="https://ejemplo.com/imagen.jpg">
         </div>
-
         <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Crear Producto</button>
     </form>
 </div>
@@ -71,19 +65,25 @@
                     <td><strong>{{ p.nombre_producto }}</strong></td>
                     <td>${{ p.precio }}</td>
                     <td>
+                        {% set ns = namespace(found=false, stock_val=0) %}
                         {% for i in inventario %}
                             {% if i.id_inventario == p.id_producto %}
-                                <span class="badge" style="background:#e1e8ed; padding:4px 10px; border-radius:12px; font-weight:600;">{{ i.cantidad }}</span>
+                                {% set ns.found = true %}
+                                {% set ns.stock_val = i.cantidad %}
                             {% endif %}
                         {% endfor %}
+                        {% if ns.found %}
+                            <span class="badge" style="background:#e1e8ed; padding:4px 12px; border-radius:12px; font-weight:600; font-size:0.9rem;">
+                                {{ ns.stock_val }}
+                            </span>
+                        {% else %}
+                            <span style="color: #95a5a6; font-size:0.8rem;">Sin stock</span>
+                        {% endif %}
                     </td>
                     <td>
-                        <!-- Botón para activar el modo edición -->
                         <button class="btn-icon" onclick="toggleEdit('{{ p.id_producto }}')" title="Editar">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
-                        
-                        <!-- Botón para ELIMINAR (Con confirmación) -->
                         <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este producto y su inventario asociado? Esta acción no se puede deshacer.');">
                             <input type="hidden" name="accion" value="eliminar">
                             <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
@@ -94,7 +94,7 @@
                     </td>
                 </tr>
                 
-                <!-- FILA OCULTA PARA EDITAR (Se muestra al hacer clic en el lápiz) -->
+                <!-- FILA OCULTA PARA EDITAR -->
                 <tr id="edit-row-{{ p.id_producto }}" style="display: none; background-color: #f8fafc;">
                     <td colspan="6">
                         <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px;">
@@ -104,17 +104,14 @@
                             <form method="POST" enctype="multipart/form-data" class="inline-form">
                                 <input type="hidden" name="accion" value="editar">
                                 <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
-                                
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Nombre</label>
                                     <input type="text" name="nombre_producto" value="{{ p.nombre_producto }}" required>
                                 </div>
-                                
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Precio</label>
                                     <input type="number" step="0.01" name="precio" value="{{ p.precio }}" required>
                                 </div>
-
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Nuevo Stock</label>
                                     {% for i in inventario %}
@@ -123,26 +120,19 @@
                                         {% endif %}
                                     {% endfor %}
                                 </div>
-
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Cambiar Imagen (Archivo)</label>
                                     <input type="file" name="imagen_file" accept="image/*">
                                 </div>
-                                
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">O URL</label>
                                     <input type="url" name="imagen_url" placeholder="https://...">
                                 </div>
-
                                 <div style="display: flex; gap: 10px; align-items: flex-end;">
                                     <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
                                         <i class="fa-solid fa-floppy-disk"></i> Guardar
                                     </button>
-                                    <button
-                                        type="button"
-                                        onclick="toggleEdit('{{ p.id_producto }}')"
-                                        style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;"
-                                        >
+                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
                                         Cancelar
                                     </button>
                                 </div>
@@ -161,15 +151,13 @@
     </div>
 </div>
 
-<!-- JavaScript para mostrar/ocultar fila de edición -->
 <script>
     function toggleEdit(id) {
         const editRow = document.getElementById(`edit-row-${id}`);
         const dataRow = document.getElementById(`row-${id}`);
-        
         if (editRow.style.display === 'none') {
             editRow.style.display = 'table-row';
-            dataRow.style.backgroundColor = '#f1f9ff'; // Resaltar fila original
+            dataRow.style.backgroundColor = '#f1f9ff';
         } else {
             editRow.style.display = 'none';
             dataRow.style.backgroundColor = '';

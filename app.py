@@ -9,14 +9,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'clave_super_secreta_marcani_2024'
 
-# --- CONFIGURACIÓN CON RUTA FORZADA PARA RENDER ---
+# --- CONFIGURACIÓN DE RUTAS ABSOLUTAS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# INTENTO 1: Usar la carpeta tmp de Render (siempre tiene permisos)
-DATA_DIR = '/tmp/data_marcani'
-
-# INTENTO 2 (Respaldo): Si no estamos en Render, usa la carpeta local
-if os.environ.get('RENDER') != 'true' and not os.path.exists(DATA_DIR):
+# Lógica definitiva para elegir la carpeta de datos:
+# 1. Si estamos en Render, usa la carpeta temporal (siempre escribible).
+# 2. Si no, usa la carpeta local.
+if os.environ.get('RENDER'):
+    DATA_DIR = '/tmp/data_marcani'
+else:
     DATA_DIR = os.path.join(BASE_DIR, 'data')
 
 # Configuración de subida de imágenes
@@ -30,49 +31,31 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30)
 
-# --- CREACIÓN FORZADA DE CARPETAS Y ARCHIVOS AL INICIAR ---
+# --- CREACIÓN FORZADA DE CARPETAS Y ARCHIVOS ---
 def initialize_files():
     """Asegura que todas las carpetas y archivos JSON existan al arrancar."""
-    
-    # 1. Crear carpeta de datos
     if not os.path.exists(DATA_DIR):
-        try:
-            os.makedirs(DATA_DIR)
-            print(f"✅ Carpeta CREADA: {DATA_DIR}")
-        except Exception as e:
-            print(f"❌ ERROR GRAVE creando carpeta {DATA_DIR}: {e}")
-
-    # 2. Crear carpeta de uploads
+        os.makedirs(DATA_DIR)
     if not os.path.exists(UPLOAD_FOLDER):
-        try:
-            os.makedirs(UPLOAD_FOLDER)
-            print(f"✅ Carpeta CREADA: {UPLOAD_FOLDER}")
-        except Exception as e:
-            print(f"❌ ERROR GRAVE creando carpeta {UPLOAD_FOLDER}: {e}")
-
-    # 3. Crear archivos JSON vacíos si no existen
+        os.makedirs(UPLOAD_FOLDER)
+    
     json_files = ['clientes.json', 'productos.json', 'empleados.json', 
                   'proveedores.json', 'inventario.json', 'ventas.json', 'usuarios.json']
     
     for filename in json_files:
         filepath = os.path.join(DATA_DIR, filename)
         if not os.path.exists(filepath):
-            try:
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    json.dump([], f)
-                print(f"✅ Archivo CREADO: {filepath}")
-            except Exception as e:
-                print(f"❌ ERROR GRAVE creando archivo {filepath}: {e}")
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump([], f)
 
-# Ejecutar la inicialización
 initialize_files()
-print(f"📍 DATOS GUARDADOS EN: {DATA_DIR}")
 
-# --- FUNCIONES AUXILIARES ---
+# --- FUNCIONES AUXILIARES DE BASE DE DATOS ---
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def load_data(filename):
+    """Lee los datos de un archivo JSON en DATA_DIR."""
     filepath = os.path.join(DATA_DIR, filename)
     if not os.path.exists(filepath):
         return []
@@ -85,15 +68,16 @@ def load_data(filename):
         return []
 
 def save_data(filename, data):
+    """Guarda los datos en un archivo JSON en DATA_DIR."""
     filepath = os.path.join(DATA_DIR, filename)
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-        return True, f"✅ Guardado exitosamente en {filepath}"
-    except Exception as e:
-        return False, f"❌ ERROR CRÍTICO al guardar {filename}. Razón: {str(e)}"
+        return True
+    except Exception:
+        return False
 
-# --- DECORADOR PARA PROTEGER RUTAS ---
+# --- DECORADOR DE SEGURIDAD ---
 def login_required(f):
     def wrap(*args, **kwargs):
         if 'user_id' not in session:
@@ -118,21 +102,10 @@ def register():
         if password != confirm_password:
             return render_template('auth/register.html', error="Las contraseñas no coinciden.")
 
-        if len(password) < 8:
-            return render_template('auth/register.html', error="La contraseña debe tener al menos 8 caracteres.")
-        if not any(c.isupper() for c in password):
-            return render_template('auth/register.html', error="La contraseña debe tener al menos una letra mayúscula.")
-        if not any(c.islower() for c in password):
-            return render_template('auth/register.html', error="La contraseña debe tener al menos una letra minúscula.")
-        if not any(c.isdigit() for c in password):
-            return render_template('auth/register.html', error="La contraseña debe tener al menos un número.")
-        if not any(c in "!@#$%^&*()-_=+[]{}|;:,.<>?/" for c in password):
-            return render_template('auth/register.html', error="La contraseña debe tener al menos un carácter especial (!@#$%^&*).")
-
         usuarios = load_data('usuarios.json')
         for u in usuarios:
             if u['email'] == email:
-                return render_template('auth/register.html', error="El correo electrónico ya está registrado.")
+                return render_template('auth/register.html', error="El correo ya está registrado.")
 
         nuevo_usuario = {
             'id_usuario': len(usuarios) + 1,
@@ -142,13 +115,8 @@ def register():
             'password_hash': generate_password_hash(password)
         }
         usuarios.append(nuevo_usuario)
-        success, msg = save_data('usuarios.json', usuarios)
-        
-        if success:
-            return redirect(url_for('login'))
-        else:
-            return render_template('auth/register.html', error=f"Error al guardar usuario: {msg}")
-
+        save_data('usuarios.json', usuarios)
+        return redirect(url_for('login'))
     return render_template('auth/register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -160,7 +128,7 @@ def login():
 
         if not email or not password:
             return render_template('auth/login.html', error="Por favor, completa todos los campos.")
-
+        
         usuarios = load_data('usuarios.json')
         user = None
         for u in usuarios:
@@ -176,9 +144,8 @@ def login():
         
         if remember_me:
             session.permanent = True
-
+            
         return redirect(url_for('home'))
-
     return render_template('auth/login.html')
 
 @app.route('/logout')
@@ -211,20 +178,14 @@ def clientes_view():
                 save_data('clientes.json', clientes)
                 return redirect(url_for('clientes_view'))
             except Exception:
-                return render_template('clientes.html', clientes=clientes, error="Error al eliminar el cliente")
+                return render_template('clientes.html', clientes=clientes, error="Error al eliminar")
         nombre = request.form.get('nombre', '').strip()
         if not nombre:
             return render_template('clientes.html', clientes=clientes, error="El nombre es obligatorio")
-        
         nuevo_cliente = {'id_cliente': len(clientes) + 1, 'nombre': nombre, 'telefono': request.form.get('telefono', ''), 'email': request.form.get('email', '')}
         clientes.append(nuevo_cliente)
-        success, msg = save_data('clientes.json', clientes)
-        
-        if success:
-            return redirect(url_for('clientes_view'))
-        else:
-            return render_template('clientes.html', clientes=load_data('clientes.json'), error=f"ERROR AL GUARDAR EL CLIENTE: {msg}")
-
+        save_data('clientes.json', clientes)
+        return redirect(url_for('clientes_view'))
     return render_template('clientes.html', clientes=clientes, error=None)
 
 @app.route('/productos', methods=['GET', 'POST'])
@@ -243,7 +204,7 @@ def productos_view():
                 save_data('inventario.json', inventario)
                 return redirect(url_for('productos_view'))
             except Exception:
-                return render_template('productos.html', productos=productos, inventario=inventario, error="Error al eliminar el producto")
+                return render_template('productos.html', productos=productos, inventario=inventario, error="Error al eliminar")
         nombre_producto = request.form.get('nombre_producto', '').strip()
         precio_str = request.form.get('precio', '0')
         stock_str = request.form.get('stock', '0')
@@ -254,7 +215,7 @@ def productos_view():
             stock = int(stock_str)
             if precio <= 0 or stock < 0: raise ValueError
         except ValueError:
-            return render_template('productos.html', productos=productos, inventario=inventario, error="Precio y Stock deben ser números válidos")
+            return render_template('productos.html', productos=productos, inventario=inventario, error="Precio y Stock inválidos")
         imagen_url = ""
         if 'imagen_file' in request.files:
             file = request.files['imagen_file']
@@ -320,7 +281,7 @@ def empleados_view():
                 save_data('empleados.json', empleados)
                 return redirect(url_for('empleados_view'))
             except Exception:
-                return render_template('empleados.html', empleados=empleados, error="Error al eliminar el empleado")
+                return render_template('empleados.html', empleados=empleados, error="Error al eliminar")
         nombre = request.form.get('nombre', '').strip()
         if not nombre:
             return render_template('empleados.html', empleados=empleados, error="El nombre es obligatorio")
@@ -343,11 +304,11 @@ def proveedores_view():
                 save_data('proveedores.json', proveedores)
                 return redirect(url_for('proveedores_view'))
             except Exception:
-                return render_template('proveedores.html', proveedores=proveedores, error="Error al eliminar el proveedor")
+                return render_template('proveedores.html', proveedores=proveedores, error="Error al eliminar")
         nombre_empresa = request.form.get('nombre_empresa', '').strip()
         que_provee = request.form.get('que_provee', '').strip()
         if not nombre_empresa:
-            return render_template('proveedores.html', proveedores=proveedores, error="El nombre de la empresa es obligatorio")
+            return render_template('proveedores.html', proveedores=proveedores, error="El nombre es obligatorio")
         if accion == 'editar':
             try:
                 proveedor_id = int(request.form.get('proveedor_id'))
@@ -380,10 +341,8 @@ def proveedores_view():
 def inventario_view():
     inventario = load_data('inventario.json')
     proveedores = load_data('proveedores.json')
-
     if request.method == 'POST':
         accion = request.form.get('accion')
-
         if accion == 'eliminar':
             try:
                 inventario_id = int(request.form.get('inventario_id'))
@@ -391,58 +350,39 @@ def inventario_view():
                 save_data('inventario.json', inventario)
                 return redirect(url_for('inventario_view'))
             except Exception:
-                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Error al eliminar el material")
-
+                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Error al eliminar")
         if accion == 'editar':
             try:
                 inventario_id = int(request.form.get('inventario_id'))
                 nueva_cantidad = int(request.form.get('cantidad', '0'))
                 nueva_unidad = request.form.get('unidad_medida', '').strip()
                 nuevo_material = request.form.get('material', '').strip()
-                
-                if nueva_cantidad < 0:
-                    raise ValueError("La cantidad no puede ser negativa")
-
+                if nueva_cantidad < 0: raise ValueError
                 for item in inventario:
                     if item['id_inventario'] == inventario_id:
                         item['material'] = nuevo_material if nuevo_material else item['material']
                         item['cantidad'] = nueva_cantidad
                         item['unidad_medida'] = nueva_unidad if nueva_unidad else item.get('unidad_medida', '')
                         break
-                
                 save_data('inventario.json', inventario)
                 return redirect(url_for('inventario_view'))
-                
             except ValueError:
-                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="La cantidad debe ser un número válido")
-            except Exception as e:
-                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error=f"Error al editar: {e}")
-
+                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Cantidad inválida")
         material = request.form.get('material', '').strip()
         cantidad = request.form.get('cantidad', '0')
         proveedor = request.form.get('proveedor', '').strip()
         unidad_medida = request.form.get('unidad_medida', '').strip()
-        
         if not material or not proveedor or not unidad_medida:
-            return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Material, Proveedor y Unidad de Medida son obligatorios")
-        
+            return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Material, Proveedor y Unidad son obligatorios")
         try:
             cantidad = int(cantidad)
             if cantidad < 0: raise ValueError
         except ValueError:
             return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Cantidad inválida")
-        
-        nuevo_item = {
-            'id_inventario': len(inventario) + 1, 
-            'material': material, 
-            'cantidad': cantidad,
-            'unidad_medida': unidad_medida,
-            'proveedor': proveedor
-        }
+        nuevo_item = {'id_inventario': len(inventario) + 1, 'material': material, 'cantidad': cantidad, 'unidad_medida': unidad_medida, 'proveedor': proveedor}
         inventario.append(nuevo_item)
         save_data('inventario.json', inventario)
         return redirect(url_for('inventario_view'))
-    
     return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error=None)
 
 @app.route('/catalogo')
@@ -467,13 +407,11 @@ def ventas_view():
             if id_cliente <= 0 or id_producto <= 0 or cantidad_vender <= 0:
                 return render_template('ventas.html', productos=productos, inventario=inventario, clientes=clientes, ventas=ventas, error="Datos inválidos")
             precio_unitario = 0
-            producto_encontrado = False
             for p in productos:
                 if p['id_producto'] == id_producto:
                     precio_unitario = p['precio']
-                    producto_encontrado = True
                     break
-            if not producto_encontrado:
+            if precio_unitario == 0:
                 return render_template('ventas.html', productos=productos, inventario=inventario, clientes=clientes, ventas=ventas, error="Producto no encontrado")
             inventario_data = load_data('inventario.json')
             stock_suficiente = False
@@ -484,7 +422,7 @@ def ventas_view():
                         stock_suficiente = True
                     break
             if not stock_suficiente:
-                return render_template('ventas.html', productos=productos, inventario=inventario, clientes=clientes, ventas=ventas, error="Stock insuficiente para este producto")
+                return render_template('ventas.html', productos=productos, inventario=inventario, clientes=clientes, ventas=ventas, error="Stock insuficiente")
             save_data('inventario.json', inventario_data)
             total = precio_unitario * cantidad_vender
             ventas_data = load_data('ventas.json')
@@ -511,41 +449,32 @@ def serve_manifest(): return app.send_static_file('manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return app.send_static_file('sw.js')
 
-# --- RUTA PARA LLENAR DATOS DE EJEMPLO ---
+# --- RUTA DE SEMBRADO (SEGURA) ---
 @app.route('/seed_database')
 @login_required
 def seed_database():
-    clientes = load_data('clientes.json')
-    if not clientes:
-        clientes_data = [
+    if not load_data('clientes.json'):
+        save_data('clientes.json', [
             {'id_cliente': 1, 'nombre': 'Ana María Gutiérrez', 'telefono': '71234567', 'email': 'ana@email.com'},
             {'id_cliente': 2, 'nombre': 'Carlos López', 'telefono': '72345678', 'email': 'carlos@email.com'},
             {'id_cliente': 3, 'nombre': 'María Fernanda Rojas', 'telefono': '73456789', 'email': 'maria@email.com'},
             {'id_cliente': 4, 'nombre': 'José Luis Martínez', 'telefono': '74567890', 'email': 'jose@email.com'},
-            {'id_cliente': 5, 'nombre': 'Lucía Torres', 'telefono': '75678901', 'email': 'lucia@email.com'},
-        ]
-        save_data('clientes.json', clientes_data)
-
-    empleados = load_data('empleados.json')
-    if not empleados:
-        empleados_data = [
+            {'id_cliente': 5, 'nombre': 'Lucía Torres', 'telefono': '75678901', 'email': 'lucia@email.com'}
+        ])
+    if not load_data('empleados.json'):
+        save_data('empleados.json', [
             {'id_empleado': 1, 'nombre': 'Pedro Rodríguez', 'cargo': 'Vendedor Senior', 'telefono': '70123456'},
             {'id_empleado': 2, 'nombre': 'Laura Fernández', 'cargo': 'Cortadora de Cuero', 'telefono': '70234567'},
             {'id_empleado': 3, 'nombre': 'Miguel Ángel Cruz', 'cargo': 'Encargado de Inventario', 'telefono': '70345678'},
-            {'id_empleado': 4, 'nombre': 'Sofía Herrera', 'cargo': 'Vendedora', 'telefono': '70456789'},
-        ]
-        save_data('empleados.json', empleados_data)
-
-    proveedores = load_data('proveedores.json')
-    if not proveedores:
-        proveedores_data = [
+            {'id_empleado': 4, 'nombre': 'Sofía Herrera', 'cargo': 'Vendedora', 'telefono': '70456789'}
+        ])
+    if not load_data('proveedores.json'):
+        save_data('proveedores.json', [
             {'id_proveedor': 1, 'nombre_empresa': 'Cueros Premium S.A.', 'que_provee': 'Cueros vacunos y ovinos', 'telefono': '77123456', 'email': 'ventas@cuerospremium.com'},
             {'id_proveedor': 2, 'nombre_empresa': 'Herrajes La Tijera', 'que_provee': 'Hebillas, broches y tachuelas', 'telefono': '77234567', 'email': 'info@herrajes.com'},
             {'id_proveedor': 3, 'nombre_empresa': 'Hilos y Textiles Bolivia', 'que_provee': 'Hilos encerados y nylon', 'telefono': '77345678', 'email': 'contacto@hilostextiles.bo'},
-            {'id_proveedor': 4, 'nombre_empresa': 'Maquilas y Bordados', 'que_provee': 'Parches y grabados láser', 'telefono': '77456789', 'email': 'maquilas@bordados.com'},
-        ]
-        save_data('proveedores.json', proveedores_data)
-
+            {'id_proveedor': 4, 'nombre_empresa': 'Maquilas y Bordados', 'que_provee': 'Parches y grabados láser', 'telefono': '77456789', 'email': 'maquilas@bordados.com'}
+        ])
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
