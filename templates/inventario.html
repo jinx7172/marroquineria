@@ -6,9 +6,11 @@
 <div class="alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
 {% endif %}
 
+<!-- Formulario para Crear -->
 <div class="form-container">
     <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Registrar Llegada de Material</h3>
     <form method="POST">
+        <input type="hidden" name="accion" value="crear">
         <div class="input-group">
             <label>Proveedor *</label>
             <select name="proveedor" required>
@@ -24,12 +26,28 @@
         </div>
         <div class="input-group">
             <label>Cantidad *</label>
-            <input type="number" min="1" name="cantidad" placeholder="0" required>
+            <input type="number" min="1" name="cantidad" placeholder="10" required>
+        </div>
+        <div class="input-group">
+            <label>Unidad de Medida *</label>
+            <select name="unidad_medida" required>
+                <option value="">Seleccionar</option>
+                <option value="m">Metros (m)</option>
+                <option value="cm">Centímetros (cm)</option>
+                <option value="u">Unidades (u)</option>
+                <option value="p">Pares (p)</option>
+                <option value="kg">Kilogramos (kg)</option>
+                <option value="l">Litros (l)</option>
+                <option value="pies">Pies (pies)</option>
+                <option value="yardas">Yardas</option>
+                <option value="rollos">Rollos</option>
+            </select>
         </div>
         <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Registrar Ingreso</button>
     </form>
 </div>
 
+<!-- Tabla con Edición -->
 <div class="table-container">
     <div class="table-responsive">
         <table>
@@ -38,25 +56,108 @@
                     <th>ID</th>
                     <th>Material</th>
                     <th>Cantidad</th>
+                    <th>Unidad</th>
                     <th>Proveído por</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for i in inventario %}
-                <!-- Solo mostramos los items que tengan un proveedor registrado -->
+                <!-- Solo mostramos items con proveedor registrado -->
                 {% if i.proveedor and i.proveedor != 'Stock Inicial' %}
-                <tr>
+                <tr id="row-inv-{{ i.id_inventario }}">
                     <td>{{ i.id_inventario }}</td>
                     <td><strong>{{ i.material }}</strong></td>
                     <td>{{ i.cantidad }}</td>
+                    <td>
+                        <span style="background: #e1e8ed; padding:4px 8px; border-radius:12px; font-weight:600;">
+                            {{ i.unidad_medida if i.unidad_medida else 'u' }}
+                        </span>
+                    </td>
                     <td><span style="background:#d1f2eb; padding:4px 8px; border-radius:12px; color:#148f77; font-weight:600;">{{ i.proveedor }}</span></td>
+                    <td>
+                        <!-- Botón Editar -->
+                        <button class="btn-icon" onclick="toggleEditInv('{{ i.id_inventario }}')" title="Editar">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <!-- Botón Eliminar -->
+                        <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Eliminar este material?');">
+                            <input type="hidden" name="accion" value="eliminar">
+                            <input type="hidden" name="inventario_id" value="{{ i.id_inventario }}">
+                            <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+
+                <!-- FILA OCULTA PARA EDITAR -->
+                <tr id="edit-row-inv-{{ i.id_inventario }}" style="display: none; background-color: #f8fafc;">
+                    <td colspan="6">
+                        <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px;">
+                            <h4 style="margin: 0 0 10px 0; color: var(--accent-color); font-size: 0.9rem;">
+                                <i class="fa-solid fa-pen"></i> Editando: {{ i.material }}
+                            </h4>
+                            <form method="POST" class="inline-form">
+                                <input type="hidden" name="accion" value="editar">
+                                <input type="hidden" name="inventario_id" value="{{ i.id_inventario }}">
+                                
+                                <div class="input-group">
+                                    <label style="font-size:0.7rem;">Material</label>
+                                    <input type="text" name="material" value="{{ i.material }}" required>
+                                </div>
+                                <div class="input-group">
+                                    <label style="font-size:0.7rem;">Cantidad</label>
+                                    <input type="number" name="cantidad" value="{{ i.cantidad }}" min="0" required>
+                                </div>
+                                <div class="input-group">
+                                    <label style="font-size:0.7rem;">Unidad</label>
+                                    <select name="unidad_medida">
+                                        <option value="m" {% if i.unidad_medida == 'm' %}selected{% endif %}>Metros (m)</option>
+                                        <option value="cm" {% if i.unidad_medida == 'cm' %}selected{% endif %}>Centímetros (cm)</option>
+                                        <option value="u" {% if i.unidad_medida == 'u' or not i.unidad_medida %}selected{% endif %}>Unidades (u)</option>
+                                        <option value="p" {% if i.unidad_medida == 'p' %}selected{% endif %}>Pares (p)</option>
+                                        <option value="kg" {% if i.unidad_medida == 'kg' %}selected{% endif %}>Kilogramos (kg)</option>
+                                        <option value="l" {% if i.unidad_medida == 'l' %}selected{% endif %}>Litros (l)</option>
+                                        <option value="pies" {% if i.unidad_medida == 'pies' %}selected{% endif %}>Pies</option>
+                                        <option value="yardas" {% if i.unidad_medida == 'yardas' %}selected{% endif %}>Yardas</option>
+                                        <option value="rollos" {% if i.unidad_medida == 'rollos' %}selected{% endif %}>Rollos</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; gap: 10px; align-items: flex-end;">
+                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
+                                        <i class="fa-solid fa-floppy-disk"></i> Guardar
+                                    </button>
+                                    <button type="button" onclick="toggleEditInv('{{ i.id_inventario }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
                 {% endif %}
                 {% else %}
-                <tr><td colspan="4" style="text-align:center; padding: 30px;">No se han recibido materiales de proveedores.</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding: 30px;">No se han recibido materiales de proveedores.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<!-- JavaScript para mostrar/ocultar fila de edición -->
+<script>
+    function toggleEditInv(id) {
+        const editRow = document.getElementById(`edit-row-inv-${id}`);
+        const dataRow = document.getElementById(`row-inv-${id}`);
+        
+        if (editRow.style.display === 'none') {
+            editRow.style.display = 'table-row';
+            dataRow.style.backgroundColor = '#f1f9ff';
+        } else {
+            editRow.style.display = 'none';
+            dataRow.style.backgroundColor = '';
+        }
+    }
+</script>
 {% endblock %}

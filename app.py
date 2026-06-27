@@ -352,24 +352,75 @@ def proveedores_view():
 @app.route('/inventario', methods=['GET', 'POST'])
 @login_required
 def inventario_view():
+    inventario = load_data('inventario.json')
+    proveedores = load_data('proveedores.json')
+
     if request.method == 'POST':
+        accion = request.form.get('accion')
+
+        # --- ELIMINAR MATERIAL ---
+        if accion == 'eliminar':
+            try:
+                inventario_id = int(request.form.get('inventario_id'))
+                inventario = [i for i in inventario if i['id_inventario'] != inventario_id]
+                save_data('inventario.json', inventario)
+                return redirect(url_for('inventario_view'))
+            except Exception:
+                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Error al eliminar el material")
+
+        # --- EDITAR CANTIDAD Y UNIDAD ---
+        if accion == 'editar':
+            try:
+                inventario_id = int(request.form.get('inventario_id'))
+                nueva_cantidad = int(request.form.get('cantidad', '0'))
+                nueva_unidad = request.form.get('unidad_medida', '').strip()
+                nuevo_material = request.form.get('material', '').strip()
+                
+                if nueva_cantidad < 0:
+                    raise ValueError("La cantidad no puede ser negativa")
+
+                for item in inventario:
+                    if item['id_inventario'] == inventario_id:
+                        item['material'] = nuevo_material if nuevo_material else item['material']
+                        item['cantidad'] = nueva_cantidad
+                        # Si el registro antiguo no tenía 'unidad_medida', se la agregamos ahora
+                        item['unidad_medida'] = nueva_unidad if nueva_unidad else item.get('unidad_medida', '')
+                        break
+                
+                save_data('inventario.json', inventario)
+                return redirect(url_for('inventario_view'))
+                
+            except ValueError:
+                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="La cantidad debe ser un número válido")
+            except Exception as e:
+                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error=f"Error al editar: {e}")
+
+        # --- CREAR NUEVO MATERIAL ---
         material = request.form.get('material', '').strip()
         cantidad = request.form.get('cantidad', '0')
         proveedor = request.form.get('proveedor', '').strip()
-        if not material or not proveedor:
-            return render_template('inventario.html', inventario=load_data('inventario.json'), proveedores=load_data('proveedores.json'), error="Material y Proveedor son obligatorios")
+        unidad_medida = request.form.get('unidad_medida', '').strip()
+        
+        if not material or not proveedor or not unidad_medida:
+            return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Material, Proveedor y Unidad de Medida son obligatorios")
+        
         try:
             cantidad = int(cantidad)
             if cantidad < 0: raise ValueError
         except ValueError:
-            return render_template('inventario.html', inventario=load_data('inventario.json'), proveedores=load_data('proveedores.json'), error="Cantidad inválida")
-        data = load_data('inventario.json')
-        nuevo_item = {'id_inventario': len(data) + 1, 'material': material, 'cantidad': cantidad, 'proveedor': proveedor}
-        data.append(nuevo_item)
-        save_data('inventario.json', data)
+            return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Cantidad inválida")
+        
+        nuevo_item = {
+            'id_inventario': len(inventario) + 1, 
+            'material': material, 
+            'cantidad': cantidad,
+            'unidad_medida': unidad_medida,  # NUEVO CAMPO
+            'proveedor': proveedor
+        }
+        inventario.append(nuevo_item)
+        save_data('inventario.json', inventario)
         return redirect(url_for('inventario_view'))
-    inventario = load_data('inventario.json')
-    proveedores = load_data('proveedores.json')
+    
     return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error=None)
 
 @app.route('/catalogo')
