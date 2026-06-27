@@ -9,16 +9,21 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'clave_super_secreta_marcani_2024'
 
-# --- CONFIGURACIÓN DE RUTAS ABSOLUTAS ---
+# --- CONFIGURACIÓN DE RUTAS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Lógica definitiva para elegir la carpeta de datos:
-# 1. Si estamos en Render, usa la carpeta temporal (siempre escribible).
-# 2. Si no, usa la carpeta local.
+# PRIORIDAD 1: Usar la carpeta 'data' que está junto a app.py (Tal como en tu captura)
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+
+# PRIORIDAD 2 (Respaldo para Render): Si por alguna razón Render no permite escribir en 'data',
+# usará esta carpeta temporal.
 if os.environ.get('RENDER'):
-    DATA_DIR = '/tmp/data_marcani'
-else:
-    DATA_DIR = os.path.join(BASE_DIR, 'data')
+    # Intentamos crear la carpeta data. Si falla, usamos tmp
+    try:
+        if not os.path.exists(DATA_DIR):
+            os.makedirs(DATA_DIR)
+    except OSError:
+        DATA_DIR = '/tmp/data_marcani'
 
 # Configuración de subida de imágenes
 if os.environ.get('RENDER'):
@@ -449,7 +454,7 @@ def serve_manifest(): return app.send_static_file('manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return app.send_static_file('sw.js')
 
-# --- RUTA DE SEMBRADO (SEGURA) ---
+# --- RUTA DE SEMBRADO ---
 @app.route('/seed_database')
 @login_required
 def seed_database():
