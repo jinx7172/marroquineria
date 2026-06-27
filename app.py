@@ -2,21 +2,24 @@ import os
 import json
 import datetime
 import secrets
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, session
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-# Clave secreta para las sesiones y cookies
 app.secret_key = 'clave_super_secreta_marcani_2024'
 
 # --- CONFIGURACIÓN ---
 DATA_DIR = 'data'
-UPLOAD_FOLDER = os.path.join('static', 'uploads')
+if os.environ.get('RENDER'):
+    UPLOAD_FOLDER = '/tmp/uploads'
+else:
+    UPLOAD_FOLDER = os.path.join('static', 'uploads')
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30) # Duración del "Recordarme"
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30)
 
 if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
 if not os.path.exists(UPLOAD_FOLDER): os.makedirs(UPLOAD_FOLDER)
@@ -28,7 +31,6 @@ def allowed_file(filename):
 def load_data(filename):
     filepath = os.path.join(DATA_DIR, filename)
     if not os.path.exists(filepath):
-        save_data(filename, [])
         return []
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
@@ -36,7 +38,6 @@ def load_data(filename):
             if not contenido: return []
             return json.loads(contenido)
     except (json.JSONDecodeError, ValueError):
-        save_data(filename, [])
         return []
 
 def save_data(filename, data):
@@ -51,14 +52,12 @@ def save_data(filename, data):
 def login_required(f):
     def wrap(*args, **kwargs):
         if 'user_id' not in session:
-            flash('Por favor, inicia sesión para acceder a esta página.', 'error')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     wrap.__name__ = f.__name__
     return wrap
 
-# --- RUTAS DE AUTENTICACIÓN ---
-
+# --- RUTAS DE AUTENTICACIÓN (SIN FLASH) ---
 @app.route('/registro', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -68,14 +67,12 @@ def register():
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
 
-        # Validaciones básicas
         if not nombre or not email or not password:
             return render_template('auth/register.html', error="Todos los campos son obligatorios.")
         
         if password != confirm_password:
             return render_template('auth/register.html', error="Las contraseñas no coinciden.")
 
-        # Validación de contraseña segura
         if len(password) < 8:
             return render_template('auth/register.html', error="La contraseña debe tener al menos 8 caracteres.")
         if not any(c.isupper() for c in password):
@@ -88,8 +85,6 @@ def register():
             return render_template('auth/register.html', error="La contraseña debe tener al menos un carácter especial (!@#$%^&*).")
 
         usuarios = load_data('usuarios.json')
-        
-        # Verificar si el correo ya existe
         for u in usuarios:
             if u['email'] == email:
                 return render_template('auth/register.html', error="El correo electrónico ya está registrado.")
@@ -104,7 +99,6 @@ def register():
         usuarios.append(nuevo_usuario)
         save_data('usuarios.json', usuarios)
 
-        flash('¡Cuenta creada exitosamente! Ahora puedes iniciar sesión.', 'success')
         return redirect(url_for('login'))
 
     return render_template('auth/register.html')
@@ -129,14 +123,12 @@ def login():
         if not user or not check_password_hash(user['password_hash'], password):
             return render_template('auth/login.html', error="Correo o contraseña incorrectos.")
 
-        # Iniciar sesión
         session['user_id'] = user['id_usuario']
         session['user_name'] = user['nombre']
         
         if remember_me:
             session.permanent = True
 
-        flash(f'¡Bienvenido de vuelta, {user["nombre"]}!', 'success')
         return redirect(url_for('home'))
 
     return render_template('auth/login.html')
@@ -144,11 +136,9 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
-    flash('Has cerrado sesión exitosamente.', 'info')
     return redirect(url_for('login'))
 
 # --- RUTAS DEL SISTEMA (PROTEGIDAS) ---
-
 @app.route('/')
 @login_required
 def home():
@@ -420,6 +410,47 @@ def serve_manifest(): return app.send_static_file('manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return app.send_static_file('sw.js')
 
+# --- RUTA PARA LLENAR DATOS DE EJEMPLO (PRODUCTOS ELIMINADOS) ---
+@app.route('/seed_database')
+@login_required
+def seed_database():
+    # 1. Llenar Clientes
+    clientes = load_data('clientes.json')
+    if not clientes:
+        clientes_data = [
+            {'id_cliente': 1, 'nombre': 'Ana María Gutiérrez', 'telefono': '71234567', 'email': 'ana@email.com'},
+            {'id_cliente': 2, 'nombre': 'Carlos López', 'telefono': '72345678', 'email': 'carlos@email.com'},
+            {'id_cliente': 3, 'nombre': 'María Fernanda Rojas', 'telefono': '73456789', 'email': 'maria@email.com'},
+            {'id_cliente': 4, 'nombre': 'José Luis Martínez', 'telefono': '74567890', 'email': 'jose@email.com'},
+            {'id_cliente': 5, 'nombre': 'Lucía Torres', 'telefono': '75678901', 'email': 'lucia@email.com'},
+        ]
+        save_data('clientes.json', clientes_data)
+
+    # 2. Llenar Empleados
+    empleados = load_data('empleados.json')
+    if not empleados:
+        empleados_data = [
+            {'id_empleado': 1, 'nombre': 'Pedro Rodríguez', 'cargo': 'Vendedor Senior', 'telefono': '70123456'},
+            {'id_empleado': 2, 'nombre': 'Laura Fernández', 'cargo': 'Cortadora de Cuero', 'telefono': '70234567'},
+            {'id_empleado': 3, 'nombre': 'Miguel Ángel Cruz', 'cargo': 'Encargado de Inventario', 'telefono': '70345678'},
+            {'id_empleado': 4, 'nombre': 'Sofía Herrera', 'cargo': 'Vendedora', 'telefono': '70456789'},
+        ]
+        save_data('empleados.json', empleados_data)
+
+    # 3. Llenar Proveedores
+    proveedores = load_data('proveedores.json')
+    if not proveedores:
+        proveedores_data = [
+            {'id_proveedor': 1, 'nombre_empresa': 'Cueros Premium S.A.', 'que_provee': 'Cueros vacunos y ovinos', 'telefono': '77123456', 'email': 'ventas@cuerospremium.com'},
+            {'id_proveedor': 2, 'nombre_empresa': 'Herrajes La Tijera', 'que_provee': 'Hebillas, broches y tachuelas', 'telefono': '77234567', 'email': 'info@herrajes.com'},
+            {'id_proveedor': 3, 'nombre_empresa': 'Hilos y Textiles Bolivia', 'que_provee': 'Hilos encerados y nylon', 'telefono': '77345678', 'email': 'contacto@hilostextiles.bo'},
+            {'id_proveedor': 4, 'nombre_empresa': 'Maquilas y Bordados', 'que_provee': 'Parches y grabados láser', 'telefono': '77456789', 'email': 'maquilas@bordados.com'},
+        ]
+        save_data('proveedores.json', proveedores_data)
+
+    # (Productos e Inventario han sido ELIMINADOS completamente de esta función)
+
+    return redirect(url_for('home'))
+
 if __name__ == '__main__':
-    # Desactivamos el debug en producción para que Render lo maneje correctamente
     app.run(host='0.0.0.0', port=5000, debug=False)
