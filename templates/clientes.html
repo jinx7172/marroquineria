@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="section-header"><i class="fa-solid fa-users"></i> Gestión de Clientes</h1>
+
+{% if error %}
+<div class="alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
+{% endif %}
+
+<div class="form-container">
+    <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Nuevo Cliente</h3>
+    <form method="POST">
+        <input type="hidden" name="accion" value="crear">
+        <div class="input-group">
+            <label>Nombre completo *</label>
+            <input type="text" name="nombre" placeholder="Ej: Juan Pérez" required>
+        </div>
+        <div class="input-group">
+            <label>Teléfono</label>
+            <input type="tel" name="telefono" placeholder="+591 71234567">
+        </div>
+        <div class="input-group">
+            <label>Correo Electrónico</label>
+            <input type="email" name="email" placeholder="juan@email.com">
+        </div>
+        <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Registrar Cliente</button>
+    </form>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+                {% for c in clientes %}
+                <tr>
+                    <td>{{ c.id_cliente }}</td>
+                    <td><strong>{{ c.nombre }}</strong></td>
+                    <td>{{ c.telefono }}</td>
+                    <td>{{ c.email }}</td>
+                    <td>
+                        <!-- Botón para ELIMINAR -->
+                        <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar a este cliente?');">
+                            <input type="hidden" name="accion" value="eliminar">
+                            <input type="hidden" name="cliente_id" value="{{ c.id_cliente }}">
+                            <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" style="text-align:center; padding: 30px;">No hay clientes registrados aún.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

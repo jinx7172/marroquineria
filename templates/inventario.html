@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="section-header"><i class="fa-solid fa-warehouse"></i> Inventario por Proveedor</h1>
+
+{% if error %}
+<div class="alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
+{% endif %}
+
+<div class="form-container">
+    <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Registrar Llegada de Material</h3>
+    <form method="POST">
+        <div class="input-group">
+            <label>Proveedor *</label>
+            <select name="proveedor" required>
+                <option value="">Seleccionar Proveedor</option>
+                {% for prov in proveedores %}
+                <option value="{{ prov.nombre_empresa }}">{{ prov.nombre_empresa }} ({{ prov.que_provee }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="input-group">
+            <label>Material *</label>
+            <input type="text" name="material" placeholder="Ej: Cuero Vacuno" required>
+        </div>
+        <div class="input-group">
+            <label>Cantidad *</label>
+            <input type="number" min="1" name="cantidad" placeholder="0" required>
+        </div>
+        <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Registrar Ingreso</button>
+    </form>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Material</th>
+                    <th>Cantidad</th>
+                    <th>Proveído por</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in inventario %}
+                <!-- Solo mostramos los items que tengan un proveedor registrado -->
+                {% if i.proveedor and i.proveedor != 'Stock Inicial' %}
+                <tr>
+                    <td>{{ i.id_inventario }}</td>
+                    <td><strong>{{ i.material }}</strong></td>
+                    <td>{{ i.cantidad }}</td>
+                    <td><span style="background:#d1f2eb; padding:4px 8px; border-radius:12px; color:#148f77; font-weight:600;">{{ i.proveedor }}</span></td>
+                </tr>
+                {% endif %}
+                {% else %}
+                <tr><td colspan="4" style="text-align:center; padding: 30px;">No se han recibido materiales de proveedores.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

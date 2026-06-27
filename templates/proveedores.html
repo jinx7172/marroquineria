@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="section-header"><i class="fa-solid fa-truck"></i> Gestión de Proveedores</h1>
+
+{% if error %}
+<div class="alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
+{% endif %}
+
+<div class="form-container">
+    <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Nuevo Proveedor</h3>
+    <form method="POST">
+        <input type="hidden" name="accion" value="crear">
+        <div class="input-group">
+            <label>Nombre Empresa *</label>
+            <input type="text" name="nombre_empresa" placeholder="Ej: Proveedores de Cuero S.A." required>
+        </div>
+        <div class="input-group">
+            <label>¿Qué nos provee? *</label>
+            <input type="text" name="que_provee" placeholder="Ej: Cueros, Hilos, Herrajes" required>
+        </div>
+        <div class="input-group">
+            <label>Teléfono</label>
+            <input type="tel" name="telefono" placeholder="+591 12345678">
+        </div>
+        <div class="input-group">
+            <label>Correo Electrónico</label>
+            <input type="email" name="email" placeholder="contacto@proveedor.com">
+        </div>
+        <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Registrar Proveedor</button>
+    </form>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Empresa</th><th>Provee</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+                {% for p in proveedores %}
+                <tr id="row-{{ p.id_proveedor }}">
+                    <td>{{ p.id_proveedor }}</td>
+                    <td><strong>{{ p.nombre_empresa }}</strong></td>
+                    <td><span style="background: #e1e8ed; padding:4px 8px; border-radius:12px; font-size:0.8rem;">{{ p.que_provee }}</span></td>
+                    <td>{{ p.telefono }}</td>
+                    <td>{{ p.email }}</td>
+                    <td>
+                        <!-- Botón para activar el modo edición -->
+                        <button class="btn-icon"
+                                onclick="toggleEditProv('{{ p.id_proveedor }}')"
+                                title="Editar">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        
+                        <!-- Botón para ELIMINAR (Con confirmación) -->
+                        <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este proveedor?');">
+                            <input type="hidden" name="accion" value="eliminar">
+                            <input type="hidden" name="proveedor_id" value="{{ p.id_proveedor }}">
+                            <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                
+                <!-- FILA OCULTA PARA EDITAR PROVEEDOR -->
+                <tr id="edit-row-{{ p.id_proveedor }}" style="display: none; background-color: #f8fafc;">
+                    <td colspan="6">
+                        <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px;">
+                            <h4 style="margin: 0 0 10px 0; color: var(--accent-color); font-size: 0.9rem;">
+                                <i class="fa-solid fa-pen"></i> Editando: {{ p.nombre_empresa }}
+                            </h4>
+                            <form method="POST" class="inline-form">
+                                <input type="hidden" name="accion" value="editar">
+                                <input type="hidden" name="proveedor_id" value="{{ p.id_proveedor }}">
+                                
+                                <div class="input-group">
+                                    <label style="font-size:0.7rem;">Empresa</label>
+                                    <input type="text" name="nombre_empresa" value="{{ p.nombre_empresa }}" required>
+                                </div>
+                                
+                                <div class="input-group">
+                                    <label style="font-size:0.7rem;">Provee</label>
+                                    <input type="text" name="que_provee" value="{{ p.que_provee }}" required>
+                                </div>
+
+                                <div class="input-group">
+                                    <label style="font-size:0.7rem;">Teléfono</label>
+                                    <input type="text" name="telefono" value="{{ p.telefono }}">
+                                </div>
+                                
+                                <div class="input-group">
+                                    <label style="font-size:0.7rem;">Email</label>
+                                    <input type="email" name="email" value="{{ p.email }}">
+                                </div>
+
+                                <div style="display: flex; gap: 10px; align-items: flex-end;">
+                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
+                                        <i class="fa-solid fa-floppy-disk"></i> Guardar
+                                    </button>
+                                    <button type="button"
+                                            onclick="toggleEditProv('{{ p.id_proveedor }}')"
+                                            style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="text-align:center; padding: 30px;">No hay proveedores registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- JavaScript para mostrar/ocultar fila de edición de PROVEEDORES -->
+<script>
+    function toggleEditProv(id) {
+        const editRow = document.getElementById(`edit-row-${id}`);
+        const dataRow = document.getElementById(`row-${id}`);
+        
+        if (editRow.style.display === 'none') {
+            editRow.style.display = 'table-row';
+            dataRow.style.backgroundColor = '#f1f9ff';
+        } else {
+            editRow.style.display = 'none';
+            dataRow.style.backgroundColor = '';
+        }
+    }
+</script>
+{% endblock %}

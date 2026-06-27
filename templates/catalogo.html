@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="section-header"><i class="fa-solid fa-store"></i> Catálogo de Productos</h1>
+
+<div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+    {% for p in productos %}
+    <div style="background: white; border-radius: var(--radius); box-shadow: var(--shadow-md); overflow: hidden; border: 1px solid var(--border-light); transition: transform 0.2s;">
+        <div style="height: 200px; background: #f9fafb; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+            {% if p.imagen %}
+                <img src="{{ p.imagen }}" alt="{{ p.nombre_producto }}" style="width: 100%; height: 100%; object-fit: contain; padding: 10px;">
+            {% else %}
+                <i class="fa-regular fa-image" style="font-size: 4rem; color: #d1d5db;"></i>
+            {% endif %}
+        </div>
+        <div style="padding: 20px;">
+            <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">{{ p.nombre_producto }}</h3>
+            <p style="font-size: 1.3rem; font-weight: 700; color: var(--accent-color); margin: 0 0 10px 0;">
+                ${{ p.precio }}
+            </p>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-light); padding-top: 10px;">
+                <span style="font-size: 0.85rem; color: var(--text-light);">Stock disponible:</span>
+                {% for i in inventario %}
+                    {% if i.id_inventario == p.id_producto %}
+                        <span style="background: #e1e8ed; padding: 4px 12px; border-radius: 20px; font-weight: 600;">{{ i.cantidad }} uds.</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-light);">
+        <i class="fa-regular fa-face-frown" style="font-size: 3rem; margin-bottom: 10px; display: block;"></i>
+        No hay productos disponibles en el catálogo.
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

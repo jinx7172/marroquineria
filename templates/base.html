@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Marcani - Gestión Empresarial</title>
+    
+    <!-- Fuente e Iconos (igual que antes) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- CAMBIO CRUCIAL: Usar url_for para el Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+    <div class="layout-container">
+        <!-- Sidebar / Menú Lateral -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-screwdriver-wrench"></i>
+                </div>
+                <h2>Marcani</h2>
+                <span class="subtitle">Gestión</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('home') }}" class="nav-item {% if request.path == '/' %}active{% endif %}">
+                    <i class="fa-solid fa-house"></i> <span>Inicio</span>
+                </a>
+                <a href="{{ url_for('clientes_view') }}" class="nav-item {% if 'clientes' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-users"></i> <span>Clientes</span>
+                </a>
+                <a href="{{ url_for('productos_view') }}" class="nav-item {% if 'productos' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-boxes-stacked"></i> <span>Productos</span>
+                </a>
+                <a href="{{ url_for('empleados_view') }}" class="nav-item {% if 'empleados' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-user-tie"></i> <span>Empleados</span>
+                </a>
+                <a href="{{ url_for('proveedores_view') }}" class="nav-item {% if 'proveedores' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-truck"></i> <span>Proveedores</span>
+                </a>
+                <a href="{{ url_for('inventario_view') }}" class="nav-item {% if 'inventario' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-warehouse"></i> <span>Inventario</span>
+                </a>
+                <a href="{{ url_for('ventas_view') }}" class="nav-item {% if 'ventas' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-coins"></i> <span>Ventas</span>
+                </a>
+                <a href="{{ url_for('catalogo_view') }}" class="nav-item {% if 'catalogo' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-store"></i> <span>Catálogo</span>
+                </a>
+                <!-- ... resto del sidebar ... -->
+            </nav>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h1><i class="fa-solid fa-bolt"></i> Panel de Control</h1>
+                <div class="user-info">
+                    <span><i class="fa-regular fa-bell"></i></span>
+                    <span style="font-weight: 600; color: #2c3e50;">
+                        <i class="fa-regular fa-user-circle"></i> {{ session.get('user_name', 'Usuario') }}
+                    </span>
+                    <a href="{{ url_for('logout') }}" style="background: #e74c3c; color: white; padding: 5px 15px; border-radius: 20px; text-decoration: none; font-size: 0.8rem; font-weight: 600;">
+                        <i class="fa-solid fa-right-from-bracket"></i> Salir
+                    </a>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    
+    <!-- Registro del Service Worker -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            // Usamos url_for para obtener la ruta exacta
+            const swUrl = "{{ url_for('static', filename='sw.js') }}";
+            
+            navigator.serviceWorker.register(swUrl)
+            .then(function(registration) {
+                console.log('ServiceWorker registrado con éxito en:', registration.scope);
+            })
+            .catch(function(error) {
+                console.log('Error al registrar el ServiceWorker:', error);
+            });
+        });
+    }
+</script>
+</body>
+</html>

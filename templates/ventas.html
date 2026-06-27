@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Registro de Ventas</h1>
+
+{% if error %}
+<div class="alert-error">{{ error }}</div>
+{% endif %}
+
+<form method="POST">
+    <select name="id_cliente" required>
+        <option value="">Seleccionar Cliente *</option>
+        {% for c in clientes %}
+        <option value="{{ c.id_cliente }}">{{ c.id_cliente }} - {{ c.nombre }}</option>
+        {% else %}
+        <option value="">No hay clientes registrados</option>
+        {% endfor %}
+    </select>
+    
+    <select name="id_producto" required>
+        <option value="">Seleccionar Producto *</option>
+        {% for p in productos %}
+        <option value="{{ p.id_producto }}">{{ p.nombre_producto }} (${{ p.precio }})</option>
+        {% else %}
+        <option value="">No hay productos</option>
+        {% endfor %}
+    </select>
+    
+    <input type="number" min="1" name="cantidad" placeholder="Cantidad *" required>
+    <button type="submit">Registrar Venta</button>
+</form>
+
+<h2>Historial de Ventas</h2>
+<div class="table-responsive">
+    <table>
+        <thead>
+            <tr><th>ID Venta</th><th>ID Cliente</th><th>ID Producto</th><th>Fecha</th><th>Cant.</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+            {% for v in ventas %}
+            <tr>
+                <td>{{ v.id_venta }}</td>
+                <td>{{ v.id_cliente }}</td>
+                <td>{{ v.id_producto }}</td>
+                <td>{{ v.fecha }}</td>
+                <td>{{ v.cantidad }}</td>
+                <td><strong>${{ v.total }}</strong></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" style="text-align:center;">Aún no se han registrado ventas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

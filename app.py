@@ -1,0 +1,424 @@
+import os
+import json
+import datetime
+import secrets
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+
+app = Flask(__name__)
+# Clave secreta para las sesiones y cookies
+app.secret_key = 'clave_super_secreta_marcani_2024'
+
+# --- CONFIGURACIÓN ---
+DATA_DIR = 'data'
+UPLOAD_FOLDER = os.path.join('static', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30) # Duración del "Recordarme"
+
+if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
+if not os.path.exists(UPLOAD_FOLDER): os.makedirs(UPLOAD_FOLDER)
+
+# --- FUNCIONES AUXILIARES ---
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def load_data(filename):
+    filepath = os.path.join(DATA_DIR, filename)
+    if not os.path.exists(filepath):
+        save_data(filename, [])
+        return []
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            contenido = f.read().strip()
+            if not contenido: return []
+            return json.loads(contenido)
+    except (json.JSONDecodeError, ValueError):
+        save_data(filename, [])
+        return []
+
+def save_data(filename, data):
+    filepath = os.path.join(DATA_DIR, filename)
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error guardando {filename}: {e}")
+
+# --- DECORADOR PARA PROTEGER RUTAS ---
+def login_required(f):
+    def wrap(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Por favor, inicia sesión para acceder a esta página.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    wrap.__name__ = f.__name__
+    return wrap
+
+# --- RUTAS DE AUTENTICACIÓN ---
+
+@app.route('/registro', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', '').strip()
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+
+        # Validaciones básicas
+        if not nombre or not email or not password:
+            return render_template('auth/register.html', error="Todos los campos son obligatorios.")
+        
+        if password != confirm_password:
+            return render_template('auth/register.html', error="Las contraseñas no coinciden.")
+
+        # Validación de contraseña segura
+        if len(password) < 8:
+            return render_template('auth/register.html', error="La contraseña debe tener al menos 8 caracteres.")
+        if not any(c.isupper() for c in password):
+            return render_template('auth/register.html', error="La contraseña debe tener al menos una letra mayúscula.")
+        if not any(c.islower() for c in password):
+            return render_template('auth/register.html', error="La contraseña debe tener al menos una letra minúscula.")
+        if not any(c.isdigit() for c in password):
+            return render_template('auth/register.html', error="La contraseña debe tener al menos un número.")
+        if not any(c in "!@#$%^&*()-_=+[]{}|;:,.<>?/" for c in password):
+            return render_template('auth/register.html', error="La contraseña debe tener al menos un carácter especial (!@#$%^&*).")
+
+        usuarios = load_data('usuarios.json')
+        
+        # Verificar si el correo ya existe
+        for u in usuarios:
+            if u['email'] == email:
+                return render_template('auth/register.html', error="El correo electrónico ya está registrado.")
+
+        nuevo_usuario = {
+            'id_usuario': len(usuarios) + 1,
+            'nombre': nombre,
+            'username': username if username else nombre.split()[0],
+            'email': email,
+            'password_hash': generate_password_hash(password)
+        }
+        usuarios.append(nuevo_usuario)
+        save_data('usuarios.json', usuarios)
+
+        flash('¡Cuenta creada exitosamente! Ahora puedes iniciar sesión.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('auth/register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        remember_me = request.form.get('remember_me')
+
+        if not email or not password:
+            return render_template('auth/login.html', error="Por favor, completa todos los campos.")
+
+        usuarios = load_data('usuarios.json')
+        user = None
+        for u in usuarios:
+            if u['email'] == email:
+                user = u
+                break
+
+        if not user or not check_password_hash(user['password_hash'], password):
+            return render_template('auth/login.html', error="Correo o contraseña incorrectos.")
+
+        # Iniciar sesión
+        session['user_id'] = user['id_usuario']
+        session['user_name'] = user['nombre']
+        
+        if remember_me:
+            session.permanent = True
+
+        flash(f'¡Bienvenido de vuelta, {user["nombre"]}!', 'success')
+        return redirect(url_for('home'))
+
+    return render_template('auth/login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Has cerrado sesión exitosamente.', 'info')
+    return redirect(url_for('login'))
+
+# --- RUTAS DEL SISTEMA (PROTEGIDAS) ---
+
+@app.route('/')
+@login_required
+def home():
+    clientes = load_data('clientes.json')
+    ventas = load_data('ventas.json')
+    total_clientes = len(clientes)
+    total_ventas_general = sum(v.get('total', 0) for v in ventas)
+    hoy = datetime.date.today().isoformat()
+    ganancias_hoy = sum(v.get('total', 0) for v in ventas if v.get('fecha') == hoy)
+    return render_template('home.html', total_clientes=total_clientes, total_ventas=total_ventas_general, ganancias_hoy=ganancias_hoy)
+
+@app.route('/clientes', methods=['GET', 'POST'])
+@login_required
+def clientes_view():
+    clientes = load_data('clientes.json')
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        if accion == 'eliminar':
+            try:
+                cliente_id = int(request.form.get('cliente_id'))
+                clientes = [c for c in clientes if c['id_cliente'] != cliente_id]
+                save_data('clientes.json', clientes)
+                return redirect(url_for('clientes_view'))
+            except Exception:
+                return render_template('clientes.html', clientes=clientes, error="Error al eliminar el cliente")
+        nombre = request.form.get('nombre', '').strip()
+        if not nombre:
+            return render_template('clientes.html', clientes=clientes, error="El nombre es obligatorio")
+        nuevo_cliente = {'id_cliente': len(clientes) + 1, 'nombre': nombre, 'telefono': request.form.get('telefono', ''), 'email': request.form.get('email', '')}
+        clientes.append(nuevo_cliente)
+        save_data('clientes.json', clientes)
+        return redirect(url_for('clientes_view'))
+    return render_template('clientes.html', clientes=clientes, error=None)
+
+@app.route('/productos', methods=['GET', 'POST'])
+@login_required
+def productos_view():
+    productos = load_data('productos.json')
+    inventario = load_data('inventario.json')
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        if accion == 'eliminar':
+            try:
+                producto_id = int(request.form.get('producto_id'))
+                productos = [p for p in productos if p['id_producto'] != producto_id]
+                save_data('productos.json', productos)
+                inventario = [i for i in inventario if i['id_inventario'] != producto_id]
+                save_data('inventario.json', inventario)
+                return redirect(url_for('productos_view'))
+            except Exception:
+                return render_template('productos.html', productos=productos, inventario=inventario, error="Error al eliminar el producto")
+        nombre_producto = request.form.get('nombre_producto', '').strip()
+        precio_str = request.form.get('precio', '0')
+        stock_str = request.form.get('stock', '0')
+        if not nombre_producto:
+            return render_template('productos.html', productos=productos, inventario=inventario, error="El nombre es obligatorio")
+        try:
+            precio = float(precio_str)
+            stock = int(stock_str)
+            if precio <= 0 or stock < 0: raise ValueError
+        except ValueError:
+            return render_template('productos.html', productos=productos, inventario=inventario, error="Precio y Stock deben ser números válidos")
+        imagen_url = ""
+        if 'imagen_file' in request.files:
+            file = request.files['imagen_file']
+            if file and file.filename != '' and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                unique_name = secrets.token_hex(8) + "_" + filename
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
+                imagen_url = url_for('static', filename='uploads/' + unique_name)
+        if not imagen_url:
+            imagen_url = request.form.get('imagen_url', '').strip()
+        if accion == 'editar':
+            try:
+                producto_id = int(request.form.get('producto_id'))
+                for p in productos:
+                    if p['id_producto'] == producto_id:
+                        p['nombre_producto'] = nombre_producto
+                        p['precio'] = precio
+                        if imagen_url: p['imagen'] = imagen_url
+                        break
+                inventario_data = load_data('inventario.json')
+                for item in inventario_data:
+                    if item['id_inventario'] == producto_id:
+                        item['cantidad'] = stock
+                        break
+                save_data('productos.json', productos)
+                save_data('inventario.json', inventario_data)
+                return redirect(url_for('productos_view'))
+            except Exception as e:
+                return render_template('productos.html', productos=productos, inventario=inventario, error=f"Error al editar: {e}")
+        else:
+            data = load_data('productos.json')
+            new_id = len(data) + 1
+            nuevo_producto = {
+                'id_producto': new_id,
+                'nombre_producto': nombre_producto,
+                'precio': precio,
+                'imagen': imagen_url
+            }
+            data.append(nuevo_producto)
+            save_data('productos.json', data)
+            inv_data = load_data('inventario.json')
+            nuevo_stock = {
+                'id_inventario': new_id,
+                'material': f"Stock de {nombre_producto}",
+                'cantidad': stock,
+                'proveedor': 'Stock Inicial'
+            }
+            inv_data.append(nuevo_stock)
+            save_data('inventario.json', inv_data)
+            return redirect(url_for('productos_view'))
+    return render_template('productos.html', productos=productos, inventario=inventario, error=None)
+
+@app.route('/empleados', methods=['GET', 'POST'])
+@login_required
+def empleados_view():
+    empleados = load_data('empleados.json')
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        if accion == 'eliminar':
+            try:
+                empleado_id = int(request.form.get('empleado_id'))
+                empleados = [e for e in empleados if e['id_empleado'] != empleado_id]
+                save_data('empleados.json', empleados)
+                return redirect(url_for('empleados_view'))
+            except Exception:
+                return render_template('empleados.html', empleados=empleados, error="Error al eliminar el empleado")
+        nombre = request.form.get('nombre', '').strip()
+        if not nombre:
+            return render_template('empleados.html', empleados=empleados, error="El nombre es obligatorio")
+        nuevo_empleado = {'id_empleado': len(empleados) + 1, 'nombre': nombre, 'cargo': request.form.get('cargo', ''), 'telefono': request.form.get('telefono', '')}
+        empleados.append(nuevo_empleado)
+        save_data('empleados.json', empleados)
+        return redirect(url_for('empleados_view'))
+    return render_template('empleados.html', empleados=empleados, error=None)
+
+@app.route('/proveedores', methods=['GET', 'POST'])
+@login_required
+def proveedores_view():
+    proveedores = load_data('proveedores.json')
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        if accion == 'eliminar':
+            try:
+                proveedor_id = int(request.form.get('proveedor_id'))
+                proveedores = [p for p in proveedores if p['id_proveedor'] != proveedor_id]
+                save_data('proveedores.json', proveedores)
+                return redirect(url_for('proveedores_view'))
+            except Exception:
+                return render_template('proveedores.html', proveedores=proveedores, error="Error al eliminar el proveedor")
+        nombre_empresa = request.form.get('nombre_empresa', '').strip()
+        que_provee = request.form.get('que_provee', '').strip()
+        if not nombre_empresa:
+            return render_template('proveedores.html', proveedores=proveedores, error="El nombre de la empresa es obligatorio")
+        if accion == 'editar':
+            try:
+                proveedor_id = int(request.form.get('proveedor_id'))
+                for p in proveedores:
+                    if p['id_proveedor'] == proveedor_id:
+                        p['nombre_empresa'] = nombre_empresa
+                        p['que_provee'] = que_provee
+                        p['telefono'] = request.form.get('telefono', '').strip()
+                        p['email'] = request.form.get('email', '').strip()
+                        break
+                save_data('proveedores.json', proveedores)
+                return redirect(url_for('proveedores_view'))
+            except Exception as e:
+                return render_template('proveedores.html', proveedores=proveedores, error=f"Error al editar: {e}")
+        else:
+            nuevo_proveedor = {
+                'id_proveedor': len(proveedores) + 1, 
+                'nombre_empresa': nombre_empresa, 
+                'que_provee': que_provee,
+                'telefono': request.form.get('telefono', '').strip(), 
+                'email': request.form.get('email', '').strip()
+            }
+            proveedores.append(nuevo_proveedor)
+            save_data('proveedores.json', proveedores)
+            return redirect(url_for('proveedores_view'))
+    return render_template('proveedores.html', proveedores=proveedores, error=None)
+
+@app.route('/inventario', methods=['GET', 'POST'])
+@login_required
+def inventario_view():
+    if request.method == 'POST':
+        material = request.form.get('material', '').strip()
+        cantidad = request.form.get('cantidad', '0')
+        proveedor = request.form.get('proveedor', '').strip()
+        if not material or not proveedor:
+            return render_template('inventario.html', inventario=load_data('inventario.json'), proveedores=load_data('proveedores.json'), error="Material y Proveedor son obligatorios")
+        try:
+            cantidad = int(cantidad)
+            if cantidad < 0: raise ValueError
+        except ValueError:
+            return render_template('inventario.html', inventario=load_data('inventario.json'), proveedores=load_data('proveedores.json'), error="Cantidad inválida")
+        data = load_data('inventario.json')
+        nuevo_item = {'id_inventario': len(data) + 1, 'material': material, 'cantidad': cantidad, 'proveedor': proveedor}
+        data.append(nuevo_item)
+        save_data('inventario.json', data)
+        return redirect(url_for('inventario_view'))
+    inventario = load_data('inventario.json')
+    proveedores = load_data('proveedores.json')
+    return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error=None)
+
+@app.route('/catalogo')
+@login_required
+def catalogo_view():
+    productos = load_data('productos.json')
+    inventario = load_data('inventario.json')
+    return render_template('catalogo.html', productos=productos, inventario=inventario)
+
+@app.route('/ventas', methods=['GET', 'POST'])
+@login_required
+def ventas_view():
+    productos = load_data('productos.json')
+    inventario = load_data('inventario.json')
+    clientes = load_data('clientes.json')
+    ventas = load_data('ventas.json')
+    if request.method == 'POST':
+        try:
+            id_cliente = int(request.form.get('id_cliente', 0))
+            id_producto = int(request.form.get('id_producto', 0))
+            cantidad_vender = int(request.form.get('cantidad', 0))
+            if id_cliente <= 0 or id_producto <= 0 or cantidad_vender <= 0:
+                return render_template('ventas.html', productos=productos, inventario=inventario, clientes=clientes, ventas=ventas, error="Datos inválidos")
+            precio_unitario = 0
+            producto_encontrado = False
+            for p in productos:
+                if p['id_producto'] == id_producto:
+                    precio_unitario = p['precio']
+                    producto_encontrado = True
+                    break
+            if not producto_encontrado:
+                return render_template('ventas.html', productos=productos, inventario=inventario, clientes=clientes, ventas=ventas, error="Producto no encontrado")
+            inventario_data = load_data('inventario.json')
+            stock_suficiente = False
+            for item in inventario_data:
+                if item['id_inventario'] == id_producto:
+                    if item['cantidad'] >= cantidad_vender:
+                        item['cantidad'] -= cantidad_vender
+                        stock_suficiente = True
+                    break
+            if not stock_suficiente:
+                return render_template('ventas.html', productos=productos, inventario=inventario, clientes=clientes, ventas=ventas, error="Stock insuficiente para este producto")
+            save_data('inventario.json', inventario_data)
+            total = precio_unitario * cantidad_vender
+            ventas_data = load_data('ventas.json')
+            nueva_venta = {
+                'id_venta': len(ventas_data) + 1,
+                'id_cliente': id_cliente,
+                'id_producto': id_producto,
+                'fecha': datetime.date.today().isoformat(),
+                'cantidad': cantidad_vender,
+                'total': total
+            }
+            ventas_data.append(nueva_venta)
+            save_data('ventas.json', ventas_data)
+            return redirect(url_for('ventas_view'))
+        except ValueError:
+            return render_template('ventas.html', productos=productos, inventario=inventario, clientes=clientes, ventas=ventas, error="Error en formato de números")
+    return render_template('ventas.html', productos=productos, inventario=inventario, clientes=clientes, ventas=ventas, error=None)
+
+@app.errorhandler(404)
+def page_not_found(e): return redirect(url_for('login'))
+
+@app.route('/manifest.json')
+def serve_manifest(): return app.send_static_file('manifest.json')
+@app.route('/sw.js')
+def serve_sw(): return app.send_static_file('sw.js')
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)

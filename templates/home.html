@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="section-header"><i class="fa-solid fa-bolt"></i> Panel de Control General</h1>
+
+<div class="dashboard-grid">
+    <div class="card">
+        <div class="icon"><i class="fa-solid fa-users"></i></div>
+        <h3>Total Clientes</h3>
+        <p>{{ total_clientes }}</p>
+    </div>
+    <div class="card">
+        <div class="icon"><i class="fa-solid fa-coins"></i></div>
+        <h3>Ingresos Totales</h3>
+        <p>${{ total_ventas }}</p>
+    </div>
+    <div class="card">
+        <div class="icon"><i class="fa-solid fa-calendar-day"></i></div>
+        <h3>Ganancias Hoy</h3>
+        <p>${{ ganancias_hoy }}</p>
+    </div>
+</div>
+
+<p style="margin-top: 30px; color: #666; text-align: center; font-size: 1.1rem;">
+    Bienvenido al sistema de gestión de <strong>Marroquinería Marcani</strong>.<br>
+    Selecciona una opción en el menú lateral para administrar el negocio.
+</p>
+{% endblock %}
