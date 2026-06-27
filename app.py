@@ -9,14 +9,19 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'clave_super_secreta_marcani_2024'
 
-# --- CONFIGURACIÓN CON RUTAS ABSOLUTAS ---
-# Obtenemos la ruta exacta donde está instalada la app en Render
+# --- CONFIGURACIÓN CON RUTA FORZADA PARA RENDER ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, 'data')
+
+# INTENTO 1: Usar la carpeta tmp de Render (siempre tiene permisos)
+DATA_DIR = '/tmp/data_marcani'
+
+# INTENTO 2 (Respaldo): Si no estamos en Render, usa la carpeta local
+if os.environ.get('RENDER') != 'true' and not os.path.exists(DATA_DIR):
+    DATA_DIR = os.path.join(BASE_DIR, 'data')
 
 # Configuración de subida de imágenes
 if os.environ.get('RENDER'):
-    UPLOAD_FOLDER = '/tmp/uploads'  # Render permite escritura aquí
+    UPLOAD_FOLDER = '/tmp/uploads_marcani'
 else:
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 
@@ -28,15 +33,22 @@ app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30)
 # --- CREACIÓN FORZADA DE CARPETAS Y ARCHIVOS AL INICIAR ---
 def initialize_files():
     """Asegura que todas las carpetas y archivos JSON existan al arrancar."""
+    
     # 1. Crear carpeta de datos
     if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-        print(f"✅ Carpeta creada: {DATA_DIR}")
+        try:
+            os.makedirs(DATA_DIR)
+            print(f"✅ Carpeta CREADA: {DATA_DIR}")
+        except Exception as e:
+            print(f"❌ ERROR GRAVE creando carpeta {DATA_DIR}: {e}")
 
     # 2. Crear carpeta de uploads
     if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
-        print(f"✅ Carpeta creada: {UPLOAD_FOLDER}")
+        try:
+            os.makedirs(UPLOAD_FOLDER)
+            print(f"✅ Carpeta CREADA: {UPLOAD_FOLDER}")
+        except Exception as e:
+            print(f"❌ ERROR GRAVE creando carpeta {UPLOAD_FOLDER}: {e}")
 
     # 3. Crear archivos JSON vacíos si no existen
     json_files = ['clientes.json', 'productos.json', 'empleados.json', 
@@ -45,12 +57,16 @@ def initialize_files():
     for filename in json_files:
         filepath = os.path.join(DATA_DIR, filename)
         if not os.path.exists(filepath):
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump([], f)  # Escribimos una lista vacía
-            print(f"✅ Archivo creado: {filename}")
+            try:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    json.dump([], f)
+                print(f"✅ Archivo CREADO: {filepath}")
+            except Exception as e:
+                print(f"❌ ERROR GRAVE creando archivo {filepath}: {e}")
 
 # Ejecutar la inicialización
 initialize_files()
+print(f"📍 DATOS GUARDADOS EN: {DATA_DIR}")
 
 # --- FUNCIONES AUXILIARES ---
 def allowed_file(filename):
@@ -73,8 +89,9 @@ def save_data(filename, data):
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
+        return True, f"✅ Guardado exitosamente en {filepath}"
     except Exception as e:
-        print(f"❌ Error guardando {filename}: {e}")
+        return False, f"❌ ERROR CRÍTICO al guardar {filename}. Razón: {str(e)}"
 
 # --- DECORADOR PARA PROTEGER RUTAS ---
 def login_required(f):
@@ -125,9 +142,12 @@ def register():
             'password_hash': generate_password_hash(password)
         }
         usuarios.append(nuevo_usuario)
-        save_data('usuarios.json', usuarios)
-
-        return redirect(url_for('login'))
+        success, msg = save_data('usuarios.json', usuarios)
+        
+        if success:
+            return redirect(url_for('login'))
+        else:
+            return render_template('auth/register.html', error=f"Error al guardar usuario: {msg}")
 
     return render_template('auth/register.html')
 
@@ -195,10 +215,16 @@ def clientes_view():
         nombre = request.form.get('nombre', '').strip()
         if not nombre:
             return render_template('clientes.html', clientes=clientes, error="El nombre es obligatorio")
+        
         nuevo_cliente = {'id_cliente': len(clientes) + 1, 'nombre': nombre, 'telefono': request.form.get('telefono', ''), 'email': request.form.get('email', '')}
         clientes.append(nuevo_cliente)
-        save_data('clientes.json', clientes)
-        return redirect(url_for('clientes_view'))
+        success, msg = save_data('clientes.json', clientes)
+        
+        if success:
+            return redirect(url_for('clientes_view'))
+        else:
+            return render_template('clientes.html', clientes=load_data('clientes.json'), error=f"ERROR AL GUARDAR EL CLIENTE: {msg}")
+
     return render_template('clientes.html', clientes=clientes, error=None)
 
 @app.route('/productos', methods=['GET', 'POST'])
@@ -358,7 +384,6 @@ def inventario_view():
     if request.method == 'POST':
         accion = request.form.get('accion')
 
-        # --- ELIMINAR MATERIAL ---
         if accion == 'eliminar':
             try:
                 inventario_id = int(request.form.get('inventario_id'))
@@ -368,7 +393,6 @@ def inventario_view():
             except Exception:
                 return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Error al eliminar el material")
 
-        # --- EDITAR CANTIDAD Y UNIDAD ---
         if accion == 'editar':
             try:
                 inventario_id = int(request.form.get('inventario_id'))
@@ -383,7 +407,6 @@ def inventario_view():
                     if item['id_inventario'] == inventario_id:
                         item['material'] = nuevo_material if nuevo_material else item['material']
                         item['cantidad'] = nueva_cantidad
-                        # Si el registro antiguo no tenía 'unidad_medida', se la agregamos ahora
                         item['unidad_medida'] = nueva_unidad if nueva_unidad else item.get('unidad_medida', '')
                         break
                 
@@ -395,7 +418,6 @@ def inventario_view():
             except Exception as e:
                 return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error=f"Error al editar: {e}")
 
-        # --- CREAR NUEVO MATERIAL ---
         material = request.form.get('material', '').strip()
         cantidad = request.form.get('cantidad', '0')
         proveedor = request.form.get('proveedor', '').strip()
@@ -414,7 +436,7 @@ def inventario_view():
             'id_inventario': len(inventario) + 1, 
             'material': material, 
             'cantidad': cantidad,
-            'unidad_medida': unidad_medida,  # NUEVO CAMPO
+            'unidad_medida': unidad_medida,
             'proveedor': proveedor
         }
         inventario.append(nuevo_item)
@@ -527,6 +549,5 @@ def seed_database():
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
-    # Esta línea hace que Flask entienda que debe escuchar en el puerto que Render le asigne
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
