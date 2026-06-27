@@ -421,4 +421,5 @@ def serve_manifest(): return app.send_static_file('manifest.json')
 def serve_sw(): return app.send_static_file('sw.js')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Desactivamos el debug en producción para que Render lo maneje correctamente
+    app.run(host='0.0.0.0', port=5000, debug=False)

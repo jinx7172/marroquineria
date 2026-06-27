@@ -63,13 +63,17 @@
         <!-- Contenido Principal -->
         <main class="main-content">
             <header class="top-bar">
-                <h1><i class="fa-solid fa-bolt"></i> Panel de Control</h1>
-                <div class="user-info">
-                    <span><i class="fa-regular fa-bell"></i></span>
-                    <span style="font-weight: 600; color: #2c3e50;">
-                        <i class="fa-regular fa-user-circle"></i> {{ session.get('user_name', 'Usuario') }}
+                <h1 style="font-size: 1rem; display: flex; align-items: center;">
+                    <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> Panel de Control
+                </h1>
+                <div class="user-info" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                    <span style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9rem;">
+                        <i class="fa-regular fa-user-circle" style="font-size: 1.2rem;"></i> 
+                        <span style="max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            {{ session.get('user_name', 'Usuario') }}
+                        </span>
                     </span>
-                    <a href="{{ url_for('logout') }}" style="background: #e74c3c; color: white; padding: 5px 15px; border-radius: 20px; text-decoration: none; font-size: 0.8rem; font-weight: 600;">
+                    <a href="{{ url_for('logout') }}" style="background: #e74c3c; color: white; padding: 5px 15px; border-radius: 20px; text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 5px;">
                         <i class="fa-solid fa-right-from-bracket"></i> Salir
                     </a>
                 </div>
