@@ -9,59 +9,68 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'clave_super_secreta_marcani_2024'
 
-# --- CONFIGURACIÓN DE RUTAS ---
+# --- RUTA BASE ABSOLUTA ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# PRIORIDAD 1: Usar la carpeta 'data' que está junto a app.py (Tal como en tu captura)
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-
-# PRIORIDAD 2 (Respaldo para Render): Si por alguna razón Render no permite escribir en 'data',
-# usará esta carpeta temporal.
-if os.environ.get('RENDER'):
-    # Intentamos crear la carpeta data. Si falla, usamos tmp
-    try:
-        if not os.path.exists(DATA_DIR):
-            os.makedirs(DATA_DIR)
-    except OSError:
-        DATA_DIR = '/tmp/data_marcani'
-
-# Configuración de subida de imágenes
+# --- CONFIGURACIÓN DE SUBIDA DE IMÁGENES ---
 if os.environ.get('RENDER'):
     UPLOAD_FOLDER = '/tmp/uploads_marcani'
 else:
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30)
 
-# --- CREACIÓN FORZADA DE CARPETAS Y ARCHIVOS ---
-def initialize_files():
-    """Asegura que todas las carpetas y archivos JSON existan al arrancar."""
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
+# --- FUNCIONES DE RESPALDO PARA CREAR CARPETAS ---
+def ensure_dirs():
+    # Intenta crear la carpeta static/uploads
     if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
+        try:
+            os.makedirs(UPLOAD_FOLDER)
+        except:
+            pass
     
-    json_files = ['clientes.json', 'productos.json', 'empleados.json', 
-                  'proveedores.json', 'inventario.json', 'ventas.json', 'usuarios.json']
-    
-    for filename in json_files:
-        filepath = os.path.join(DATA_DIR, filename)
-        if not os.path.exists(filepath):
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump([], f)
+    # Intenta crear la carpeta data
+    data_path = os.path.join(BASE_DIR, 'data')
+    if not os.path.exists(data_path):
+        try:
+            os.makedirs(data_path)
+        except:
+            pass
 
-initialize_files()
+ensure_dirs()
 
-# --- FUNCIONES AUXILIARES DE BASE DE DATOS ---
+# --- FUNCIONES AUXILIARES CON RUTAS EXPLÍCITAS ---
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def get_data_path(filename):
+    """Calcula la ruta exacta y segura para guardar el archivo."""
+    # Ruta principal en la carpeta data
+    primary_path = os.path.join(BASE_DIR, 'data', filename)
+    
+    # Si podemos escribir ahí, usamos esa ruta
+    try:
+        if os.path.exists(os.path.dirname(primary_path)) or os.makedirs(os.path.dirname(primary_path), exist_ok=True):
+            test_file = os.path.join(os.path.dirname(primary_path), '.test_write')
+            with open(test_file, 'w') as f: f.write('test')
+            os.remove(test_file)
+            return primary_path
+    except:
+        pass
+    
+    # Si falló (por ejemplo en Render sin permisos), usamos la carpeta /tmp
+    fallback_path = os.path.join('/tmp', 'marcani_data', filename)
+    try:
+        os.makedirs(os.path.dirname(fallback_path), exist_ok=True)
+    except:
+        pass
+    return fallback_path
+
 def load_data(filename):
-    """Lee los datos de un archivo JSON en DATA_DIR."""
-    filepath = os.path.join(DATA_DIR, filename)
+    """Lee los datos usando la ruta calculada."""
+    filepath = get_data_path(filename)
     if not os.path.exists(filepath):
         return []
     try:
@@ -73,8 +82,8 @@ def load_data(filename):
         return []
 
 def save_data(filename, data):
-    """Guarda los datos en un archivo JSON en DATA_DIR."""
-    filepath = os.path.join(DATA_DIR, filename)
+    """Guarda los datos usando la ruta calculada."""
+    filepath = get_data_path(filename)
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
