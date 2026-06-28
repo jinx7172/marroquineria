@@ -37,7 +37,7 @@
     </form>
 </div>
 
-<!-- Tabla -->
+<!-- Tabla con opción de EDICIÓN, AUMENTAR STOCK y ELIMINACIÓN -->
 <div class="table-container">
     <div class="table-responsive">
         <table>
@@ -55,7 +55,13 @@
                 {% for p in productos %}
                 <tr id="row-{{ p.id_producto }}">
                     <td>{{ p.id_producto }}</td>
-                    <td>{% if p.imagen %}<img src="{{ p.imagen }}" alt="{{ p.nombre_producto }}" class="product-img">{% else %}<span style="color: #ccc;"><i class="fa-regular fa-image"></i></span>{% endif %}</td>
+                    <td>
+                        {% if p.imagen %}
+                            <img src="{{ p.imagen }}" alt="{{ p.nombre_producto }}" class="product-img">
+                        {% else %}
+                            <span style="color: #ccc;"><i class="fa-regular fa-image"></i></span>
+                        {% endif %}
+                    </td>
                     <td><strong>{{ p.nombre_producto }}</strong></td>
                     <td>${{ p.precio }}</td>
                     <td>
@@ -67,7 +73,7 @@
                             {% endif %}
                         {% endfor %}
                         {% if ns.found %}
-                            <span class="badge" id="stock-badge-{{ p.id_producto }}" style="background:#e1e8ed; padding:4px 12px; border-radius:12px; font-weight:600; font-size:0.9rem;">
+                            <span class="badge" style="background:#e1e8ed; padding:4px 12px; border-radius:12px; font-weight:600; font-size:0.9rem;">
                                 {{ ns.stock_val }}
                             </span>
                         {% else %}
@@ -76,13 +82,18 @@
                     </td>
                     <td>
                         <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                            <!-- Botón AUMENTAR STOCK -->
                             <button class="btn-icon" onclick="openStockModal('{{ p.id_producto }}', '{{ p.nombre_producto }}')" title="Aumentar Stock" style="color: #27ae60;">
                                 <i class="fa-solid fa-plus-circle" style="font-size: 1.3rem;"></i>
                             </button>
+                            
+                            <!-- Botón EDITAR -->
                             <button class="btn-icon" onclick="toggleEdit('{{ p.id_producto }}')" title="Editar">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
-                            <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro?');">
+
+                            <!-- Botón ELIMINAR -->
+                            <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este producto y su inventario asociado?');">
                                 <input type="hidden" name="accion" value="eliminar">
                                 <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
                                 <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
@@ -92,44 +103,58 @@
                         </div>
                     </td>
                 </tr>
+                
+                <!-- FILA OCULTA PARA EDITAR (CORREGIDA Y SEPARADA) -->
                 <tr id="edit-row-{{ p.id_producto }}" style="display: none; background-color: #f8fafc;">
                     <td colspan="6">
                         <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px;">
-                            <h4 style="margin: 0 0 10px 0; color: var(--accent-color); font-size: 0.9rem;">
-                                <i class="fa-solid fa-pen"></i> Editando: {{ p.nombre_producto }}
+                            <h4 style="margin: 0 0 15px 0; color: var(--accent-color); font-size: 0.9rem;">
+                                <i class="fa-solid fa-pen"></i> Editando: <strong>{{ p.nombre_producto }}</strong>
                             </h4>
-                            <form method="POST" enctype="multipart/form-data" class="inline-form">
+                            
+                            <!-- Calculamos el stock actual del producto para usarlo en el formulario -->
+                            {% set current_stock = 0 %}
+                            {% for i in inventario %}
+                                {% if i.id_inventario == p.id_producto %}
+                                    {% set current_stock = i.cantidad %}
+                                {% endif %}
+                            {% endfor %}
+
+                            <form method="POST" enctype="multipart/form-data" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; background: transparent; padding: 0; margin: 0; border: none;">
                                 <input type="hidden" name="accion" value="editar">
                                 <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
-                                <div class="input-group">
-                                    <label style="font-size:0.7rem;">Nombre</label>
-                                    <input type="text" name="nombre_producto" value="{{ p.nombre_producto }}" required>
+                                
+                                <div class="input-group" style="min-width: 150px; flex: 1;">
+                                    <label style="font-size:0.7rem; font-weight:600;">Nombre</label>
+                                    <input type="text" name="nombre_producto" value="{{ p.nombre_producto }}" required style="width:100%;">
                                 </div>
-                                <div class="input-group">
-                                    <label style="font-size:0.7rem;">Precio</label>
-                                    <input type="number" step="0.01" name="precio" value="{{ p.precio }}" required>
+                                
+                                <div class="input-group" style="min-width: 100px; flex: 0.5;">
+                                    <label style="font-size:0.7rem; font-weight:600;">Precio ($)</label>
+                                    <input type="number" step="0.01" name="precio" value="{{ p.precio }}" required style="width:100%;">
                                 </div>
-                                <div class="input-group">
-                                    <label style="font-size:0.7rem;">Nuevo Stock</label>
-                                    {% for i in inventario %}
-                                        {% if i.id_inventario == p.id_producto %}
-                                            <input type="number" name="stock" value="{{ i.cantidad }}" required>
-                                        {% endif %}
-                                    {% endfor %}
+
+                                <div class="input-group" style="min-width: 100px; flex: 0.5;">
+                                    <label style="font-size:0.7rem; font-weight:600;">Nuevo Stock</label>
+                                    <!-- Usamos la variable calculada arriba, NO un bucle -->
+                                    <input type="number" name="stock" value="{{ current_stock }}" required style="width:100%;">
                                 </div>
-                                <div class="input-group">
-                                    <label style="font-size:0.7rem;">Cambiar Imagen (Archivo)</label>
-                                    <input type="file" name="imagen_file" accept="image/*">
+
+                                <div class="input-group" style="min-width: 150px; flex: 1;">
+                                    <label style="font-size:0.7rem; font-weight:600;">Cambiar Imagen (Archivo)</label>
+                                    <input type="file" name="imagen_file" accept="image/*" style="width:100%;">
                                 </div>
-                                <div class="input-group">
-                                    <label style="font-size:0.7rem;">O URL</label>
-                                    <input type="url" name="imagen_url" placeholder="https://...">
+                                
+                                <div class="input-group" style="min-width: 150px; flex: 1;">
+                                    <label style="font-size:0.7rem; font-weight:600;">O URL</label>
+                                    <input type="url" name="imagen_url" placeholder="https://..." style="width:100%;">
                                 </div>
-                                <div style="display: flex; gap: 10px; align-items: flex-end;">
-                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
+
+                                <div style="display: flex; gap: 10px; align-items: center; padding-bottom: 2px;">
+                                    <button type="submit" class="btn-primary" style="padding: 8px 20px; height: auto;">
                                         <i class="fa-solid fa-floppy-disk"></i> Guardar
                                     </button>
-                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
+                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 8px 20px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
                                         Cancelar
                                     </button>
                                 </div>
@@ -148,27 +173,31 @@
     </div>
 </div>
 
-<!-- MODAL PARA AUMENTAR STOCK -->
+<!-- MODAL PARA AUMENTAR STOCK (Oculto por defecto) -->
 <div id="stockModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999;">
     <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
         <h3 style="margin-top: 0; color: #27ae60;"><i class="fa-solid fa-cart-plus"></i> Aumentar Stock</h3>
         <p style="color: #555;">¿Cuántas unidades deseas agregar a <strong id="modalProductName" style="color: #2c3e50;"></strong>?</p>
-        <div style="margin-bottom: 20px;">
-            <label for="cantidad_aumentar">Cantidad a aumentar *</label>
-            <input type="number" id="cantidad_aumentar" min="1" placeholder="Ej: 10" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
-        </div>
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button type="button" onclick="closeStockModal()" style="background: #95a5a6; padding: 10px 20px; border: none; color: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
-            <button type="button" onclick="ejecutarAumentoStock()" class="btn-primary" style="padding: 10px 20px; background: #27ae60;">Agregar Stock</button>
-        </div>
+        <form method="POST" id="stockForm">
+            <input type="hidden" name="accion" value="aumentar_stock">
+            <input type="hidden" name="producto_id" id="modalProductId" value="">
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label for="cantidad_aumentar">Cantidad a aumentar *</label>
+                <input type="number" name="cantidad_aumentar" id="cantidad_aumentar" min="1" placeholder="Ej: 10" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="closeStockModal()" style="background: #95a5a6; padding: 10px 20px; border: none; color: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
+                <button type="submit" class="btn-primary" style="padding: 10px 20px; background: #27ae60;">Agregar Stock</button>
+            </div>
+        </form>
     </div>
 </div>
 
+<!-- SCRIPTS -->
 <script>
-    let modalProductId = null;
-
+    // Funciones para el Modal de Stock
     function openStockModal(id, name) {
-        modalProductId = id;
+        document.getElementById('modalProductId').value = id;
         document.getElementById('modalProductName').innerText = name;
         document.getElementById('stockModal').style.display = 'flex';
         document.getElementById('cantidad_aumentar').value = '';
@@ -177,58 +206,16 @@
 
     function closeStockModal() {
         document.getElementById('stockModal').style.display = 'none';
-        modalProductId = null;
     }
 
+    // Cerrar modal si se hace clic fuera de la caja
     document.getElementById('stockModal').addEventListener('click', function(e) {
         if (e.target === this) {
             closeStockModal();
         }
     });
 
-    async function ejecutarAumentoStock() {
-        const cantidad = parseInt(document.getElementById('cantidad_aumentar').value);
-        if (!modalProductId) { alert("Error: ID no encontrado."); return; }
-        if (!cantidad || cantidad <= 0) { alert("Ingresa una cantidad válida mayor a 0."); return; }
-
-        const btn = document.querySelector('#stockModal .btn-primary');
-        btn.innerText = 'Guardando...';
-        btn.disabled = true;
-
-        try {
-            const response = await fetch('/api/aumentar_stock', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    producto_id: modalProductId,
-                    cantidad_aumentar: cantidad
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                // 1. Actualizar el número en la tabla de Productos
-                const badge = document.getElementById(`stock-badge-${modalProductId}`);
-                if (badge) { badge.innerText = data.nuevo_stock; }
-                
-                // 2. ACTUALIZAR CATÁLOGO EN SEGUNDO PLANO (Pre-carga)
-                // Hacemos un fetch silencioso a la página del catálogo. 
-                // Cuando el usuario vaya a la pestaña Catálogo, ya tendrá el número nuevo en el caché.
-                fetch('/catalogo');
-                
-                closeStockModal();
-            } else {
-                alert('Error: ' + data.error);
-            }
-        } catch (error) {
-            alert('Error de conexión: ' + error);
-        } finally {
-            btn.innerText = 'Agregar Stock';
-            btn.disabled = false;
-        }
-    }
-
+    // Función de edición existente
     function toggleEdit(id) {
         const editRow = document.getElementById(`edit-row-${id}`);
         const dataRow = document.getElementById(`row-${id}`);
