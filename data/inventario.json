@@ -2,7 +2,7 @@
     {
         "id_inventario": 1,
         "material": "Cuero Vacuno Negro",
-        "cantidad": 160,
+        "cantidad": 200,
         "unidad_medida": "rollos",
         "proveedor": "Cuero Premium SRL"
     },
