@@ -31,15 +31,8 @@
             </p>
             <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-light); padding-top: 10px;">
                 <span style="font-size: 0.85rem; color: var(--text-light);">Stock disponible:</span>
-                {% set ns = namespace(found=false, stock_val=0) %}
-                {% for i in inventario %}
-                    {% if i.id_inventario == p.id_producto %}
-                        {% set ns.found = true %}
-                        {% set ns.stock_val = i.cantidad %}
-                    {% endif %}
-                {% endfor %}
                 <span style="background: #e1e8ed; padding: 4px 12px; border-radius: 20px; font-weight: 600;">
-                    {{ ns.stock_val if ns.found else 0 }} uds.
+                    {{ p.stock if p.stock is defined else 0 }} uds.
                 </span>
             </div>
         </div>
@@ -64,18 +57,15 @@
         if (!src) return;
         document.getElementById('zoomImage').src = src;
         document.getElementById('imageZoomModal').style.display = 'flex';
-        // Bloquear scroll del fondo
         document.body.style.overflow = 'hidden';
     }
 
     function closeImageZoom() {
         document.getElementById('imageZoomModal').style.display = 'none';
         document.getElementById('zoomImage').src = '';
-        // Restaurar scroll del fondo
         document.body.style.overflow = 'auto';
     }
 
-    // Cerrar con la tecla ESC
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeImageZoom();
