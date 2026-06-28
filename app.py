@@ -486,16 +486,26 @@ def ventas_view():
             if not producto_encontrado:
                 return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error="Producto no encontrado")
             
-            # 1. Restar stock del producto en la lista cargada en memoria
+            # 1. Verificar stock disponible
+            stock_actual = 0
             for p in productos:
                 if p['id_producto'] == id_producto:
-                    p['stock'] -= cantidad_vender
+                    stock_actual = p.get('stock', 0)
+                    break
+                    
+            if stock_actual < cantidad_vender:
+                return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error=f"Stock insuficiente. Solo hay {stock_actual} unidades disponibles.")
+            
+            # 2. Restar stock del producto
+            for p in productos:
+                if p['id_producto'] == id_producto:
+                    p['stock'] = stock_actual - cantidad_vender
                     break
             
-            # 2. GUARDAR EL CAMBIO EN EL ARCHIVO (¡Esto es lo que faltaba!)
+            # 3. Guardar el cambio en el archivo (FUNDAMENTAL)
             save_data('productos.json', productos)
             
-            # 3. Guardar la venta
+            # 4. Guardar la venta
             total = precio_unitario * cantidad_vender
             ventas_data = load_data('ventas.json')
             nueva_venta = {
@@ -547,11 +557,30 @@ def seed_database():
             {'id_proveedor': 3, 'nombre_empresa': 'Hilos y Textiles Bolivia', 'que_provee': 'Hilos encerados y nylon', 'telefono': '77345678', 'email': 'contacto@hilostextiles.bo'},
             {'id_proveedor': 4, 'nombre_empresa': 'Maquilas y Bordados', 'que_provee': 'Parches y grabados láser', 'telefono': '77456789', 'email': 'maquilas@bordados.com'}
         ])
+    # CORREGIDO: Bloque de inventario con la sintaxis correcta
     if not load_data('inventario.json'):
         save_data('inventario.json', [
-            {'id_inventario': 1, 'material': 'Cuero vacuno premium', 'cantidad': 50, 'unidad_medida': 'm', 'proveedor': 'Cueros Premium S.A.'},
-            {'id_inventario': 2, 'material': 'Hebillas de metal dorado', 'cantidad': 200, 'unidad_medida': 'u', 'proveedor': 'Herrajes La Tijera'},
-            {'id_inventario': 3, 'material': 'Hilo encerado negro', 'cantidad': 30, 'unidad_medida': 'rollos', 'proveedor': 'Hilos y Textiles Bolivia'}
+            {
+                "id_inventario": 1, 
+                "material": "Cuero vacuno premium", 
+                "cantidad": 50, 
+                "unidad_medida": "m", 
+                "proveedor": "Cueros Premium S.A."
+            },
+            {
+                "id_inventario": 2, 
+                "material": "Hebillas de metal dorado", 
+                "cantidad": 200, 
+                "unidad_medida": "u", 
+                "proveedor": "Herrajes La Tijera"
+            },
+            {
+                "id_inventario": 3, 
+                "material": "Hilo encerado negro", 
+                "cantidad": 30, 
+                "unidad_medida": "rollos", 
+                "proveedor": "Hilos y Textiles Bolivia"
+            }
         ])
     return redirect(url_for('home'))
 
