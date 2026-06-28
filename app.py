@@ -3,7 +3,7 @@ import json
 import datetime
 import secrets
 import requests
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -14,7 +14,6 @@ app.secret_key = 'clave_super_secreta_marcani_2024'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 
-# Configuración de subida de imágenes
 if os.environ.get('RENDER'):
     UPLOAD_FOLDER = '/tmp/uploads_marcani'
 else:
@@ -25,17 +24,27 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30)
 
 # --- CONFIGURACIÓN DE GITHUB ---
-# PUEDES DEJAR ESTO ASÍ. LA PRIMERA VEZ QUE GUARDES, SE CREARÁ SOLO.
-GITHUB_TOKEN = None
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', None)
 GIST_ID = None
 GIST_FILENAME = 'marcani_db.json'
 
 # --- FUNCIONES DE SINCRO DE DATOS ---
 def sync_from_github():
-    """Descarga los datos desde GitHub Gist y los guarda en la carpeta data/ local."""
     global GIST_ID, GITHUB_TOKEN
-    
-    if not GITHUB_TOKEN or not GIST_ID:
+    if not GITHUB_TOKEN:
+        return False
+        
+    # Leer Gist ID guardado localmente
+    token_path = os.path.join(DATA_DIR, 'github_config.json')
+    if os.path.exists(token_path):
+        try:
+            with open(token_path, 'r') as f:
+                config = json.load(f)
+                GIST_ID = config.get('gist_id')
+        except:
+            pass
+
+    if not GIST_ID:
         return False
         
     try:
@@ -51,7 +60,6 @@ def sync_from_github():
                 raw_response = requests.get(raw_url)
                 if raw_response.status_code == 200:
                     contenido = raw_response.json()
-                    # Sobrescribimos los archivos locales con los de la nube
                     for tabla, datos in contenido.items():
                         filepath = os.path.join(DATA_DIR, f"{tabla}.json")
                         with open(filepath, 'w', encoding='utf-8') as f:
@@ -62,10 +70,10 @@ def sync_from_github():
     return False
 
 def sync_to_github():
-    """Sube todos los datos locales a la Gist de GitHub."""
     global GIST_ID, GITHUB_TOKEN
-    
-    # 1. Buscar si existe un token guardado
+    if not GITHUB_TOKEN:
+        return False
+
     token_path = os.path.join(DATA_DIR, 'github_config.json')
     if os.path.exists(token_path):
         try:
@@ -76,11 +84,9 @@ def sync_to_github():
         except:
             pass
 
-    # Si no hay token, no podemos guardar en GitHub
     if not GITHUB_TOKEN:
         return False
 
-    # 2. Crear el payload con todos los datos
     all_data = {}
     json_files = ['clientes', 'productos', 'empleados', 'proveedores', 'inventario', 'ventas', 'usuarios']
     for tabla in json_files:
@@ -91,7 +97,6 @@ def sync_to_github():
         except:
             all_data[tabla] = []
 
-    # 3. Subir a GitHub
     try:
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
         payload = {
@@ -103,35 +108,27 @@ def sync_to_github():
         }
         
         if GIST_ID:
-            # Actualizar Gist existente
             url = f"https://api.github.com/gists/{GIST_ID}"
             requests.patch(url, headers=headers, json=payload)
         else:
-            # Crear Gist nuevo
             payload["public"] = False
             url = "https://api.github.com/gists"
             response = requests.post(url, headers=headers, json=payload)
             if response.status_code == 201:
                 gist_data = response.json()
                 GIST_ID = gist_data['id']
-                # Guardamos el token y el ID localmente
                 with open(token_path, 'w') as f:
                     json.dump({'token': GITHUB_TOKEN, 'gist_id': GIST_ID}, f)
         return True
     except:
         return False
 
-# --- FUNCIONES DE BASE DE DATOS (Con respaldo en GitHub) ---
+# --- FUNCIONES DE BASE DE DATOS ---
 def load_data(filename):
-    # Ruta local
     local_path = os.path.join(DATA_DIR, filename)
-    
-    # Si el archivo no existe localmente, intentamos descargar de GitHub
     if not os.path.exists(local_path):
         if sync_from_github():
-            pass # Si se descargó, ya existe
-    
-    # Cargar local
+            pass
     if not os.path.exists(local_path):
         return []
     try:
@@ -143,7 +140,6 @@ def load_data(filename):
         return []
 
 def save_data(filename, data):
-    # Guardar localmente primero
     local_path = os.path.join(DATA_DIR, filename)
     try:
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -151,12 +147,12 @@ def save_data(filename, data):
             json.dump(data, f, indent=4, ensure_ascii=False)
     except:
         pass
-    
-    # Subir todo a GitHub como respaldo en la nube
     sync_to_github()
     return True
 
-# --- DECORADOR DE SEGURIDAD ---
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 def login_required(f):
     def wrap(*args, **kwargs):
         if 'user_id' not in session:
@@ -177,7 +173,6 @@ def register():
 
         if not nombre or not email or not password:
             return render_template('auth/register.html', error="Todos los campos son obligatorios.")
-        
         if password != confirm_password:
             return render_template('auth/register.html', error="Las contraseñas no coinciden.")
 
@@ -207,7 +202,6 @@ def login():
 
         if not email or not password:
             return render_template('auth/login.html', error="Por favor, completa todos los campos.")
-        
         usuarios = load_data('usuarios.json')
         user = None
         for u in usuarios:
@@ -220,10 +214,8 @@ def login():
 
         session['user_id'] = user['id_usuario']
         session['user_name'] = user['nombre']
-        
         if remember_me:
             session.permanent = True
-            
         return redirect(url_for('home'))
     return render_template('auth/login.html')
 
@@ -272,8 +264,39 @@ def clientes_view():
 def productos_view():
     productos = load_data('productos.json')
     inventario = load_data('inventario.json')
+    
     if request.method == 'POST':
         accion = request.form.get('accion')
+        
+        # --- ACCIÓN: AUMENTAR STOCK (NUEVO) ---
+        if accion == 'aumentar_stock':
+            try:
+                producto_id = int(request.form.get('producto_id'))
+                cantidad_aumentar = int(request.form.get('cantidad_aumentar', 0))
+                
+                if cantidad_aumentar <= 0:
+                    return render_template('productos.html', productos=productos, inventario=inventario, error="La cantidad a aumentar debe ser mayor a 0")
+
+                # Encontrar y actualizar el inventario del producto
+                inventario_data = load_data('inventario.json')
+                stock_actualizado = False
+                for item in inventario_data:
+                    if item['id_inventario'] == producto_id:
+                        item['cantidad'] += cantidad_aumentar
+                        stock_actualizado = True
+                        break
+                
+                if stock_actualizado:
+                    save_data('inventario.json', inventario_data)
+                    return redirect(url_for('productos_view'))
+                else:
+                    return render_template('productos.html', productos=productos, inventario=inventario, error="No se encontró el registro de stock para este producto")
+            except ValueError:
+                return render_template('productos.html', productos=productos, inventario=inventario, error="Cantidad inválida")
+            except Exception as e:
+                return render_template('productos.html', productos=productos, inventario=inventario, error=f"Error al aumentar stock: {e}")
+
+        # --- ACCIÓN: ELIMINAR ---
         if accion == 'eliminar':
             try:
                 producto_id = int(request.form.get('producto_id'))
@@ -284,6 +307,8 @@ def productos_view():
                 return redirect(url_for('productos_view'))
             except Exception:
                 return render_template('productos.html', productos=productos, inventario=inventario, error="Error al eliminar")
+
+        # --- ACCIÓN: CREAR O EDITAR ---
         nombre_producto = request.form.get('nombre_producto', '').strip()
         precio_str = request.form.get('precio', '0')
         stock_str = request.form.get('stock', '0')
@@ -295,6 +320,7 @@ def productos_view():
             if precio <= 0 or stock < 0: raise ValueError
         except ValueError:
             return render_template('productos.html', productos=productos, inventario=inventario, error="Precio y Stock inválidos")
+        
         imagen_url = ""
         if 'imagen_file' in request.files:
             file = request.files['imagen_file']
@@ -305,6 +331,7 @@ def productos_view():
                 imagen_url = url_for('static', filename='uploads/' + unique_name)
         if not imagen_url:
             imagen_url = request.form.get('imagen_url', '').strip()
+
         if accion == 'editar':
             try:
                 producto_id = int(request.form.get('producto_id'))
@@ -345,6 +372,7 @@ def productos_view():
             inv_data.append(nuevo_stock)
             save_data('inventario.json', inv_data)
             return redirect(url_for('productos_view'))
+            
     return render_template('productos.html', productos=productos, inventario=inventario, error=None)
 
 @app.route('/empleados', methods=['GET', 'POST'])
@@ -528,7 +556,6 @@ def serve_manifest(): return app.send_static_file('manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return app.send_static_file('sw.js')
 
-# --- RUTA DE SEMBRADO ---
 @app.route('/seed_database')
 @login_required
 def seed_database():
