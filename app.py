@@ -34,7 +34,6 @@ def sync_from_github():
     if not GITHUB_TOKEN:
         return False
         
-    # Leer Gist ID guardado localmente
     token_path = os.path.join(DATA_DIR, 'github_config.json')
     if os.path.exists(token_path):
         try:
@@ -268,7 +267,7 @@ def productos_view():
     if request.method == 'POST':
         accion = request.form.get('accion')
         
-        # --- ACCIÓN: AUMENTAR STOCK (NUEVO) ---
+        # --- ACCIÓN: AUMENTAR STOCK (CORREGIDO) ---
         if accion == 'aumentar_stock':
             try:
                 producto_id = int(request.form.get('producto_id'))
@@ -282,7 +281,7 @@ def productos_view():
                 stock_actualizado = False
                 for item in inventario_data:
                     if item['id_inventario'] == producto_id:
-                        item['cantidad'] += cantidad_aumentar
+                        item['cantidad'] = item['cantidad'] + cantidad_aumentar
                         stock_actualizado = True
                         break
                 

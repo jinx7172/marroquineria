@@ -83,12 +83,12 @@
                     <td>
                         <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
                             <!-- Botón AUMENTAR STOCK -->
-                            <button class="btn-icon" onclick="openStockModal({{ p.id_producto }}, '{{ p.nombre_producto }}')" title="Aumentar Stock" style="color: #27ae60;">
+                            <button class="btn-icon" onclick="openStockModal('{{ p.id_producto }}', '{{ p.nombre_producto }}')" title="Aumentar Stock" style="color: #27ae60;">
                                 <i class="fa-solid fa-plus-circle" style="font-size: 1.3rem;"></i>
                             </button>
                             
                             <!-- Botón EDITAR -->
-                            <button class="btn-icon" onclick="toggleEdit({{ p.id_producto }})" title="Editar">
+                            <button class="btn-icon" onclick="toggleEdit('{{ p.id_producto }}')" title="Editar">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
 
@@ -142,7 +142,7 @@
                                     <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
                                         <i class="fa-solid fa-floppy-disk"></i> Guardar
                                     </button>
-                                    <button type="button" onclick="toggleEdit({{ p.id_producto }})" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
+                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
                                         Cancelar
                                     </button>
                                 </div>
@@ -183,7 +183,6 @@
 
 <!-- SCRIPTS -->
 <script>
-    // Funciones para el Modal de Stock
     function openStockModal(id, name) {
         document.getElementById('modalProductId').value = id;
         document.getElementById('modalProductName').innerText = name;
@@ -196,14 +195,12 @@
         document.getElementById('stockModal').style.display = 'none';
     }
 
-    // Cerrar modal si se hace clic fuera de la caja
     document.getElementById('stockModal').addEventListener('click', function(e) {
         if (e.target === this) {
             closeStockModal();
         }
     });
 
-    // Función de edición existente
     function toggleEdit(id) {
         const editRow = document.getElementById(`edit-row-${id}`);
         const dataRow = document.getElementById(`row-${id}`);
