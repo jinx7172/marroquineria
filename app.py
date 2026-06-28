@@ -486,7 +486,16 @@ def ventas_view():
             if not producto_encontrado:
                 return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error="Producto no encontrado")
             
-            # IMPORTANTE: Calcular y guardar el total de la venta
+            # 1. Restar stock del producto en la lista cargada en memoria
+            for p in productos:
+                if p['id_producto'] == id_producto:
+                    p['stock'] -= cantidad_vender
+                    break
+            
+            # 2. GUARDAR EL CAMBIO EN EL ARCHIVO (¡Esto es lo que faltaba!)
+            save_data('productos.json', productos)
+            
+            # 3. Guardar la venta
             total = precio_unitario * cantidad_vender
             ventas_data = load_data('ventas.json')
             nueva_venta = {

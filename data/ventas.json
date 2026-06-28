@@ -14,5 +14,13 @@
         "fecha": "2026-06-28",
         "cantidad": 50,
         "total": 1150.0
+    },
+    {
+        "id_venta": 3,
+        "id_cliente": 5,
+        "id_producto": 1,
+        "fecha": "2026-06-28",
+        "cantidad": 20,
+        "total": 460.0
     }
 ]
