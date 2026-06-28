@@ -87,9 +87,8 @@ def sync_to_github():
         return False
 
     all_data = {}
-    # Lista de archivos a sincronizar. 
-    # NOTA: inventario.json ya no se usa, se ha eliminado de la lista.
-    json_files = ['clientes', 'productos', 'empleados', 'proveedores', 'ventas', 'usuarios']
+    # Lista completa de archivos a sincronizar (Inventario incluido)
+    json_files = ['clientes', 'productos', 'empleados', 'proveedores', 'inventario', 'ventas', 'usuarios']
     for tabla in json_files:
         filepath = os.path.join(DATA_DIR, f"{tabla}.json")
         try:
@@ -268,36 +267,6 @@ def productos_view():
     if request.method == 'POST':
         accion = request.form.get('accion')
         
-        # --- ACCIÓN: AUMENTAR STOCK ---
-        if accion == 'aumentar_stock':
-            try:
-                producto_id = int(request.form.get('producto_id'))
-                cantidad_aumentar = int(request.form.get('cantidad_aumentar', 0))
-                
-                if cantidad_aumentar <= 0:
-                    return render_template('productos.html', productos=productos, error="La cantidad a aumentar debe ser mayor a 0")
-
-                # Lógica corregida: Buscamos el producto y sumamos al stock interno
-                stock_actualizado = False
-                for item in productos:
-                    if item['id_producto'] == producto_id:
-                        # Aseguramos que exista el campo stock antes de sumar
-                        if 'stock' not in item:
-                            item['stock'] = 0
-                        item['stock'] += cantidad_aumentar
-                        stock_actualizado = True
-                        break
-                
-                if stock_actualizado:
-                    save_data('productos.json', productos)
-                    return redirect(url_for('productos_view'))
-                else:
-                    return render_template('productos.html', productos=productos, error="No se encontró el producto")
-            except ValueError:
-                return render_template('productos.html', productos=productos, error="Cantidad inválida")
-            except Exception as e:
-                return render_template('productos.html', productos=productos, error=f"Error al aumentar stock: {e}")
-
         # --- ACCIÓN: ELIMINAR ---
         if accion == 'eliminar':
             try:
@@ -311,15 +280,13 @@ def productos_view():
         # --- ACCIÓN: CREAR O EDITAR ---
         nombre_producto = request.form.get('nombre_producto', '').strip()
         precio_str = request.form.get('precio', '0')
-        stock_str = request.form.get('stock', '0')
         if not nombre_producto:
             return render_template('productos.html', productos=productos, error="El nombre es obligatorio")
         try:
             precio = float(precio_str)
-            stock = int(stock_str)
-            if precio <= 0 or stock < 0: raise ValueError
+            if precio <= 0: raise ValueError
         except ValueError:
-            return render_template('productos.html', productos=productos, error="Precio y Stock inválidos")
+            return render_template('productos.html', productos=productos, error="Precio inválido")
         
         imagen_url = ""
         if 'imagen_file' in request.files:
@@ -339,10 +306,8 @@ def productos_view():
                     if p['id_producto'] == producto_id:
                         p['nombre_producto'] = nombre_producto
                         p['precio'] = precio
-                        p['stock'] = stock # Actualizamos el stock directo
                         if imagen_url: p['imagen'] = imagen_url
                         break
-                        
                 save_data('productos.json', productos)
                 return redirect(url_for('productos_view'))
             except Exception as e:
@@ -354,7 +319,6 @@ def productos_view():
                 'id_producto': new_id,
                 'nombre_producto': nombre_producto,
                 'precio': precio,
-                'stock': stock, # El stock nace dentro del producto
                 'imagen': imagen_url
             }
             data.append(nuevo_producto)
@@ -431,10 +395,67 @@ def proveedores_view():
             return redirect(url_for('proveedores_view'))
     return render_template('proveedores.html', proveedores=proveedores, error=None)
 
+# --- 5. INVENTARIO (Independiente, usa solo inventario.json) ---
 @app.route('/inventario', methods=['GET', 'POST'])
 @login_required
 def inventario_view():
-    return redirect(url_for('productos_view'))
+    inventario = load_data('inventario.json')
+    proveedores = load_data('proveedores.json')
+    
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        if accion == 'eliminar':
+            try:
+                inventario_id = int(request.form.get('inventario_id'))
+                inventario = [i for i in inventario if i['id_inventario'] != inventario_id]
+                save_data('inventario.json', inventario)
+                return redirect(url_for('inventario_view'))
+            except Exception:
+                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Error al eliminar")
+        
+        if accion == 'editar':
+            try:
+                inventario_id = int(request.form.get('inventario_id'))
+                nueva_cantidad = int(request.form.get('cantidad', '0'))
+                nueva_unidad = request.form.get('unidad_medida', '').strip()
+                nuevo_material = request.form.get('material', '').strip()
+                if nueva_cantidad < 0: raise ValueError
+                for item in inventario:
+                    if item['id_inventario'] == inventario_id:
+                        item['material'] = nuevo_material if nuevo_material else item['material']
+                        item['cantidad'] = nueva_cantidad
+                        item['unidad_medida'] = nueva_unidad if nueva_unidad else item.get('unidad_medida', '')
+                        break
+                save_data('inventario.json', inventario)
+                return redirect(url_for('inventario_view'))
+            except ValueError:
+                return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Cantidad inválida")
+        
+        material = request.form.get('material', '').strip()
+        cantidad = request.form.get('cantidad', '0')
+        proveedor = request.form.get('proveedor', '').strip()
+        unidad_medida = request.form.get('unidad_medida', '').strip()
+        
+        if not material or not proveedor or not unidad_medida:
+            return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Material, Proveedor y Unidad son obligatorios")
+        try:
+            cantidad = int(cantidad)
+            if cantidad < 0: raise ValueError
+        except ValueError:
+            return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error="Cantidad inválida")
+        
+        nuevo_item = {
+            'id_inventario': len(inventario) + 1, 
+            'material': material, 
+            'cantidad': cantidad,
+            'unidad_medida': unidad_medida,
+            'proveedor': proveedor
+        }
+        inventario.append(nuevo_item)
+        save_data('inventario.json', inventario)
+        return redirect(url_for('inventario_view'))
+    
+    return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error=None)
 
 @app.route('/catalogo')
 @login_required
@@ -461,22 +482,11 @@ def ventas_view():
             for p in productos:
                 if p['id_producto'] == id_producto:
                     precio_unitario = p['precio']
-                    # Verificar stock en el propio producto
-                    if p.get('stock', 0) >= cantidad_vender:
-                        producto_encontrado = True
-                    else:
-                        return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error="Stock insuficiente para este producto")
+                    producto_encontrado = True
                     break
             
             if not producto_encontrado:
-                return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error="Producto no encontrado o sin stock")
-            
-            # Descontar stock del producto
-            for p in productos:
-                if p['id_producto'] == id_producto:
-                    p['stock'] -= cantidad_vender
-                    break
-            save_data('productos.json', productos)
+                return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error="Producto no encontrado")
             
             total = precio_unitario * cantidad_vender
             ventas_data = load_data('ventas.json')
@@ -528,7 +538,12 @@ def seed_database():
             {'id_proveedor': 3, 'nombre_empresa': 'Hilos y Textiles Bolivia', 'que_provee': 'Hilos encerados y nylon', 'telefono': '77345678', 'email': 'contacto@hilostextiles.bo'},
             {'id_proveedor': 4, 'nombre_empresa': 'Maquilas y Bordados', 'que_provee': 'Parches y grabados láser', 'telefono': '77456789', 'email': 'maquilas@bordados.com'}
         ])
-    # NOTA: Ya no se llena inventario.json
+    if not load_data('inventario.json'):
+        save_data('inventario.json', [
+            {'id_inventario': 1, 'material': 'Cuero vacuno premium', 'cantidad': 50, 'unidad_medida': 'm', 'proveedor': 'Cueros Premium S.A.'},
+            {'id_inventario': 2, 'material': 'Hebillas de metal dorado', 'cantidad': 200, 'unidad_medida': 'u', 'proveedor': 'Herrajes La Tijera'},
+            {'id_inventario': 3, 'material': 'Hilo encerado negro', 'cantidad': 30, 'unidad_medida': 'rollos', 'proveedor': 'Hilos y Textiles Bolivia'}
+        ])
     return redirect(url_for('home'))
 
 if __name__ == '__main__':

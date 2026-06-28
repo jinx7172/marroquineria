@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="section-header"><i class="fa-solid fa-warehouse"></i> Inventario por Proveedor</h1>
+<h1 class="section-header"><i class="fa-solid fa-warehouse"></i> Gestión de Inventario (Materiales)</h1>
 
 {% if error %}
 <div class="alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
 {% endif %}
 
-<!-- Formulario para Crear -->
+<!-- Formulario para CREAR -->
 <div class="form-container">
-    <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Registrar Llegada de Material</h3>
+    <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Registrar Material</h3>
     <form method="POST">
         <input type="hidden" name="accion" value="crear">
         <div class="input-group">
@@ -47,7 +47,7 @@
     </form>
 </div>
 
-<!-- Tabla con Edición -->
+<!-- Tabla con Edición y Eliminación -->
 <div class="table-container">
     <div class="table-responsive">
         <table>
@@ -63,8 +63,6 @@
             </thead>
             <tbody>
                 {% for i in inventario %}
-                <!-- Solo mostramos items con proveedor registrado -->
-                {% if i.proveedor and i.proveedor != 'Stock Inicial' %}
                 <tr id="row-inv-{{ i.id_inventario }}">
                     <td>{{ i.id_inventario }}</td>
                     <td><strong>{{ i.material }}</strong></td>
@@ -77,7 +75,7 @@
                     <td><span style="background:#d1f2eb; padding:4px 8px; border-radius:12px; color:#148f77; font-weight:600;">{{ i.proveedor }}</span></td>
                     <td>
                         <!-- Botón Editar -->
-                        <button class="btn-icon" onclick="toggleEditInv('{{ i.id_inventario }}')" title="Editar">
+                        <button class="btn-icon" onclick="toggleEditInv({{ i.id_inventario }})" title="Editar">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
                         <!-- Botón Eliminar -->
@@ -101,7 +99,6 @@
                             <form method="POST" class="inline-form">
                                 <input type="hidden" name="accion" value="editar">
                                 <input type="hidden" name="inventario_id" value="{{ i.id_inventario }}">
-                                
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Material</label>
                                     <input type="text" name="material" value="{{ i.material }}" required>
@@ -128,36 +125,4 @@
                                     <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
                                         <i class="fa-solid fa-floppy-disk"></i> Guardar
                                     </button>
-                                    <button type="button" onclick="toggleEditInv('{{ i.id_inventario }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
-                                        Cancelar
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% endif %}
-                {% else %}
-                <tr><td colspan="6" style="text-align:center; padding: 30px;">No se han recibido materiales de proveedores.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- JavaScript para mostrar/ocultar fila de edición -->
-<script>
-    function toggleEditInv(id) {
-        const editRow = document.getElementById(`edit-row-inv-${id}`);
-        const dataRow = document.getElementById(`row-inv-${id}`);
-        
-        if (editRow.style.display === 'none') {
-            editRow.style.display = 'table-row';
-            dataRow.style.backgroundColor = '#f1f9ff';
-        } else {
-            editRow.style.display = 'none';
-            dataRow.style.backgroundColor = '';
-        }
-    }
-</script>
-{% endblock %}
+                                    <button type="button" onclick="toggleEditInv({{ i.id_inventario }})" style="background: #95a5a6; padding: 5px 15px;

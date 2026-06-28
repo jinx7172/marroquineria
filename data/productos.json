@@ -3,30 +3,35 @@
         "id_producto": 1,
         "nombre_producto": "billetera de varon BLV-0071-C",
         "precio": 23.0,
-        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/6552/BLV-0071-01-01.png"
+        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/6552/BLV-0071-01-01.png",
+        "stock": 200
     },
     {
         "id_producto": 2,
         "nombre_producto": "billetera de varon BLV-0074-G",
         "precio": 23.0,
-        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/11726/4-01-01.png"
+        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/11726/4-01-01.png",
+        "stock": 210
     },
     {
         "id_producto": 3,
         "nombre_producto": "billetera de dama BLD-0042-A-C",
         "precio": 37.0,
-        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/13891/e-01.png"
+        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/13891/e-01.png",
+        "stock": 270
     },
     {
         "id_producto": 4,
         "nombre_producto": "bandolera de dama BDD-0186-C",
         "precio": 67.0,
-        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/10896/BDD-0186-05-01.png"
+        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/10896/BDD-0186-05-01.png",
+        "stock": 150
     },
     {
         "id_producto": 5,
         "nombre_producto": "bandolera de varon BDV-0188-N",
         "precio": 117.0,
-        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/10788/BDV-0188-01-01(1).png"
+        "imagen": "https://calzartbolivia.com/dosweb2/_lib/file/img/10788/BDV-0188-01-01(1).png",
+        "stock": 90
     }
 ]
