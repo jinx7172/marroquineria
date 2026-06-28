@@ -1,0 +1,37 @@
+[
+    {
+        "id_proveedor": 1,
+        "nombre_empresa": "Cuero Premium SRL",
+        "que_provee": "Cuero genuino",
+        "telefono": "72111111",
+        "email": "ventas@cueropremium.com"
+    },
+    {
+        "id_proveedor": 2,
+        "nombre_empresa": "Insumos Textiles Andina",
+        "que_provee": "Forros y telas internas",
+        "telefono": "72222222",
+        "email": "contacto@andinatextiles.com"
+    },
+    {
+        "id_proveedor": 3,
+        "nombre_empresa": "Hebillas del Valle",
+        "que_provee": "Hebillas y accesorios metálicos",
+        "telefono": "73333333",
+        "email": "pedidos@hebillasdelvalle.com"
+    },
+    {
+        "id_proveedor": 4,
+        "nombre_empresa": "Cremalleras Express",
+        "que_provee": "Cierres y cremalleras",
+        "telefono": "74444444",
+        "email": "ventas@cremallerasexpress.com"
+    },
+    {
+        "id_proveedor": 5,
+        "nombre_empresa": "Empaques EcoPack",
+        "que_provee": "Bolsas, cajas y empaques",
+        "telefono": "75555555",
+        "email": ""
+    }
+]

@@ -1,0 +1,67 @@
+[
+    {
+        "id_inventario": 1,
+        "material": "Cuero Vacuno Negro",
+        "cantidad": 140,
+        "unidad_medida": "rollos",
+        "proveedor": "Cuero Premium SRL"
+    },
+    {
+        "id_inventario": 2,
+        "material": "Tela Interior Premium",
+        "cantidad": 170,
+        "unidad_medida": "m",
+        "proveedor": "Insumos Textiles Andina"
+    },
+    {
+        "id_inventario": 3,
+        "material": "Hebilla Metálica Dorada",
+        "cantidad": 230,
+        "unidad_medida": "u",
+        "proveedor": "Hebillas del Valle"
+    },
+    {
+        "id_inventario": 4,
+        "material": "Cremallera Reforzada",
+        "cantidad": 130,
+        "unidad_medida": "m",
+        "proveedor": "Cremalleras Express"
+    },
+    {
+        "id_inventario": 5,
+        "material": "Caja Ecológica Mediana",
+        "cantidad": 80,
+        "unidad_medida": "u",
+        "proveedor": "Empaques EcoPack"
+    },
+    {
+        "id_inventario": 1,
+        "material": "Stock de billetera de varon BLV-0071-C",
+        "cantidad": 150,
+        "proveedor": "Stock Inicial"
+    },
+    {
+        "id_inventario": 2,
+        "material": "Stock de billetera de varon BLV-0074-G",
+        "cantidad": 170,
+        "proveedor": "Stock Inicial"
+    },
+    {
+        "id_inventario": 3,
+        "material": "Stock de billetera de dama BLD-0042-A-C",
+        "cantidad": 230,
+        "proveedor": "Stock Inicial"
+    },
+    {
+        "id_inventario": 4,
+        "material": "Stock de bandolera de dama BDD-0186-C",
+        "cantidad": 130,
+        "proveedor": "Stock Inicial"
+    },
+    {
+        "id_inventario": 5,
+        "material": "Stock de bandolera de varon BDV-0188-N",
+        "cantidad": 80,
+        "proveedor": "Stock Inicial"
+    }
+]

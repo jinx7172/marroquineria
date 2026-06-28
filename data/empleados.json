@@ -1,0 +1,32 @@
+[
+    {
+        "id_empleado": 1,
+        "nombre": "Roberto Salazar",
+        "cargo": "contador",
+        "telefono": "70111222"
+    },
+    {
+        "id_empleado": 2,
+        "nombre": "Patricia Gómez",
+        "cargo": "cortadora",
+        "telefono": "70222333"
+    },
+    {
+        "id_empleado": 3,
+        "nombre": "Diego Rojas",
+        "cargo": "costurero",
+        "telefono": "70333444"
+    },
+    {
+        "id_empleado": 4,
+        "nombre": "Fernanda Ruiz",
+        "cargo": "costurera",
+        "telefono": "70444555"
+    },
+    {
+        "id_empleado": 5,
+        "nombre": "Miguel Castro",
+        "cargo": "costurero",
+        "telefono": "70555666"
+    }
+]

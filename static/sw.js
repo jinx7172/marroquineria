@@ -1,4 +1,4 @@
-const CACHE_NAME = 'marroquineria-marcani-v1';
+const CACHE_NAME = 'marroquiner-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/static/manifest.json',

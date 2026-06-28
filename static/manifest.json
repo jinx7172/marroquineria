@@ -1,22 +1,24 @@
 {
-  "name": "marroquineria marcani PWA",
-  "short_name": "ZonaZero",
-  "description": "Sistema de gestión offline de inventario y ventas",
+  "name": "Marroquinería Marcani",
+  "short_name": "Marcani",
+  "description": "Sistema de gestión",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#f0f4f8",
   "theme_color": "#2c3e50",
-  "orientation": "portrait-primary",
+  "scope": "/",
   "icons": [
     {
-      "src": "/static/icons/icon-192.png",
+      "src": "./icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "sizes": "192x192"
+      "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/icon-512.png",
+      "src": "./icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "sizes": "512x512"
+      "purpose": "any maskable"
     }
   ]
 }

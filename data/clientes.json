@@ -1,0 +1,32 @@
+[
+    {
+        "id_cliente": 1,
+        "nombre": "Juan Perez",
+        "telefono": "71234867",
+        "email": "juan@gmail.com"
+    },
+    {
+        "id_cliente": 2,
+        "nombre": "María López",
+        "telefono": "72345678",
+        "email": "maria.lopez@gmail.com"
+    },
+    {
+        "id_cliente": 3,
+        "nombre": "Carlos Mendoza",
+        "telefono": "73456789",
+        "email": "carlos.mendoza@gmail.com"
+    },
+    {
+        "id_cliente": 4,
+        "nombre": "Ana Rodríguez",
+        "telefono": "74567890",
+        "email": "ana.rodriguez@gmail.com"
+    },
+    {
+        "id_cliente": 5,
+        "nombre": "Luis Fernández",
+        "telefono": "75678901",
+        "email": "luis.fernandez@gmail.com"
+    }
+]

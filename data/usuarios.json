@@ -1,0 +1,9 @@
+[
+    {
+        "id_usuario": 1,
+        "nombre": "carlos robles",
+        "username": "jinx",
+        "email": "jinx@gmail.com",
+        "password_hash": "scrypt:32768:8:1$tvorAYWC2govHDQY$38c305d7aa69d2ccbb57f24c9b04c4243ed996b602303198fa9275c67a6873d6799c1da021ee2a49b97e5cc0e89e1045dfd1b3210214ebb090177b14a87a578b"
+    }
+]
