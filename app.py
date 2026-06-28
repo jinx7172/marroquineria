@@ -87,7 +87,6 @@ def sync_to_github():
         return False
 
     all_data = {}
-    # Lista completa de archivos a sincronizar (Inventario incluido)
     json_files = ['clientes', 'productos', 'empleados', 'proveedores', 'inventario', 'ventas', 'usuarios']
     for tabla in json_files:
         filepath = os.path.join(DATA_DIR, f"{tabla}.json")
@@ -267,7 +266,6 @@ def productos_view():
     if request.method == 'POST':
         accion = request.form.get('accion')
         
-        # --- ACCIÓN: ELIMINAR ---
         if accion == 'eliminar':
             try:
                 producto_id = int(request.form.get('producto_id'))
@@ -277,7 +275,6 @@ def productos_view():
             except Exception:
                 return render_template('productos.html', productos=productos, error="Error al eliminar")
 
-        # --- ACCIÓN: CREAR O EDITAR ---
         nombre_producto = request.form.get('nombre_producto', '').strip()
         precio_str = request.form.get('precio', '0')
         if not nombre_producto:
@@ -395,7 +392,6 @@ def proveedores_view():
             return redirect(url_for('proveedores_view'))
     return render_template('proveedores.html', proveedores=proveedores, error=None)
 
-# --- 5. INVENTARIO (Independiente, usa solo inventario.json) ---
 @app.route('/inventario', methods=['GET', 'POST'])
 @login_required
 def inventario_view():
@@ -469,11 +465,13 @@ def ventas_view():
     productos = load_data('productos.json')
     clientes = load_data('clientes.json')
     ventas = load_data('ventas.json')
+    
     if request.method == 'POST':
         try:
             id_cliente = int(request.form.get('id_cliente', 0))
             id_producto = int(request.form.get('id_producto', 0))
             cantidad_vender = int(request.form.get('cantidad', 0))
+            
             if id_cliente <= 0 or id_producto <= 0 or cantidad_vender <= 0:
                 return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error="Datos inválidos")
             
@@ -488,6 +486,7 @@ def ventas_view():
             if not producto_encontrado:
                 return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error="Producto no encontrado")
             
+            # IMPORTANTE: Calcular y guardar el total de la venta
             total = precio_unitario * cantidad_vender
             ventas_data = load_data('ventas.json')
             nueva_venta = {
@@ -500,6 +499,7 @@ def ventas_view():
             }
             ventas_data.append(nueva_venta)
             save_data('ventas.json', ventas_data)
+            
             return redirect(url_for('ventas_view'))
         except ValueError:
             return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error="Error en formato de números")

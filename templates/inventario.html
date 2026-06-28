@@ -75,7 +75,7 @@
                     <td><span style="background:#d1f2eb; padding:4px 8px; border-radius:12px; color:#148f77; font-weight:600;">{{ i.proveedor }}</span></td>
                     <td>
                         <!-- Botón Editar -->
-                        <button class="btn-icon" onclick="toggleEditInv({{ i.id_inventario }})" title="Editar">
+                        <button class="btn-icon" onclick="toggleEditInv('{{ i.id_inventario }}')" title="Editar">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
                         <!-- Botón Eliminar -->
@@ -125,4 +125,35 @@
                                     <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
                                         <i class="fa-solid fa-floppy-disk"></i> Guardar
                                     </button>
-                                    <button type="button" onclick="toggleEditInv({{ i.id_inventario }})" style="background: #95a5a6; padding: 5px 15px;
+                                    <button type="button" onclick="toggleEditInv('{{ i.id_inventario }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="text-align:center; padding: 30px;">No hay materiales en el inventario.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- JavaScript para mostrar/ocultar fila de edición -->
+<script>
+    function toggleEditInv(id) {
+        const editRow = document.getElementById(`edit-row-inv-${id}`);
+        const dataRow = document.getElementById(`row-inv-${id}`);
+        
+        if (editRow.style.display === 'none') {
+            editRow.style.display = 'table-row';
+            dataRow.style.backgroundColor = '#f1f9ff';
+        } else {
+            editRow.style.display = 'none';
+            dataRow.style.backgroundColor = '';
+        }
+    }
+</script>
+{% endblock %}
