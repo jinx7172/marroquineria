@@ -23,13 +23,115 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30)
 
-# --- FUNCIONES DE BASE DE DATOS CON GUARDADO REAL ---
+# --- CONFIGURACIÓN DE GITHUB ---
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', None)
+GIST_ID = None
+GIST_FILENAME = 'marcani_db.json'
+
+# --- FUNCIONES DE SINCRO DE DATOS ---
+def sync_from_github():
+    global GIST_ID, GITHUB_TOKEN
+    if not GITHUB_TOKEN:
+        return False
+        
+    token_path = os.path.join(DATA_DIR, 'github_config.json')
+    if os.path.exists(token_path):
+        try:
+            with open(token_path, 'r') as f:
+                config = json.load(f)
+                GIST_ID = config.get('gist_id')
+        except:
+            pass
+
+    if not GIST_ID:
+        return False
+        
+    try:
+        url = f"https://api.github.com/gists/{GIST_ID}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            gist_data = response.json()
+            files = gist_data.get('files', {})
+            if GIST_FILENAME in files:
+                raw_url = files[GIST_FILENAME]['raw_url']
+                raw_response = requests.get(raw_url)
+                if raw_response.status_code == 200:
+                    contenido = raw_response.json()
+                    for tabla, datos in contenido.items():
+                        filepath = os.path.join(DATA_DIR, f"{tabla}.json")
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            json.dump(datos, f, indent=4, ensure_ascii=False)
+                    return True
+    except:
+        pass
+    return False
+
+def sync_to_github():
+    global GIST_ID, GITHUB_TOKEN
+    if not GITHUB_TOKEN:
+        return False
+
+    token_path = os.path.join(DATA_DIR, 'github_config.json')
+    if os.path.exists(token_path):
+        try:
+            with open(token_path, 'r') as f:
+                config = json.load(f)
+                GITHUB_TOKEN = config.get('token')
+                GIST_ID = config.get('gist_id')
+        except:
+            pass
+
+    if not GITHUB_TOKEN:
+        return False
+
+    all_data = {}
+    json_files = ['clientes', 'productos', 'empleados', 'proveedores', 'inventario', 'ventas', 'usuarios']
+    for tabla in json_files:
+        filepath = os.path.join(DATA_DIR, f"{tabla}.json")
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                all_data[tabla] = json.load(f)
+        except:
+            all_data[tabla] = []
+
+    try:
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        payload = {
+            "files": {
+                GIST_FILENAME: {
+                    "content": json.dumps(all_data, indent=4)
+                }
+            }
+        }
+        
+        if GIST_ID:
+            url = f"https://api.github.com/gists/{GIST_ID}"
+            requests.patch(url, headers=headers, json=payload)
+        else:
+            payload["public"] = False
+            url = "https://api.github.com/gists"
+            response = requests.post(url, headers=headers, json=payload)
+            if response.status_code == 201:
+                gist_data = response.json()
+                GIST_ID = gist_data['id']
+                with open(token_path, 'w') as f:
+                    json.dump({'token': GITHUB_TOKEN, 'gist_id': GIST_ID}, f)
+        return True
+    except:
+        return False
+
+# --- FUNCIONES DE BASE DE DATOS ---
 def load_data(filename):
-    filepath = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(filepath):
+    local_path = os.path.join(DATA_DIR, filename)
+    if not os.path.exists(local_path):
+        if sync_from_github():
+            pass
+    if not os.path.exists(local_path):
         return []
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(local_path, 'r', encoding='utf-8') as f:
             contenido = f.read().strip()
             if not contenido: return []
             return json.loads(contenido)
@@ -37,15 +139,15 @@ def load_data(filename):
         return []
 
 def save_data(filename, data):
-    filepath = os.path.join(DATA_DIR, filename)
+    local_path = os.path.join(DATA_DIR, filename)
     try:
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        with open(filepath, 'w', encoding='utf-8') as f:
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        with open(local_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error guardando: {e}")
-        return False
+    except:
+        pass
+    sync_to_github()
+    return True
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -165,6 +267,35 @@ def productos_view():
     if request.method == 'POST':
         accion = request.form.get('accion')
         
+        # --- ACCIÓN: AUMENTAR STOCK ---
+        if accion == 'aumentar_stock':
+            try:
+                producto_id = int(request.form.get('producto_id'))
+                cantidad_aumentar = int(request.form.get('cantidad_aumentar', 0))
+                
+                if cantidad_aumentar <= 0:
+                    return render_template('productos.html', productos=productos, inventario=inventario, error="La cantidad a aumentar debe ser mayor a 0")
+
+                # Lógica corregida: Buscamos el inventario cuyo id_inventario coincida con el producto_id
+                inventario_data = load_data('inventario.json')
+                stock_actualizado = False
+                for item in inventario_data:
+                    if item['id_inventario'] == producto_id:
+                        item['cantidad'] += cantidad_aumentar
+                        stock_actualizado = True
+                        break
+                
+                if stock_actualizado:
+                    save_data('inventario.json', inventario_data)
+                    return redirect(url_for('productos_view'))
+                else:
+                    return render_template('productos.html', productos=productos, inventario=inventario, error="No se encontró el registro de stock para este producto")
+            except ValueError:
+                return render_template('productos.html', productos=productos, inventario=inventario, error="Cantidad inválida")
+            except Exception as e:
+                return render_template('productos.html', productos=productos, inventario=inventario, error=f"Error al aumentar stock: {e}")
+
+        # --- ACCIÓN: ELIMINAR ---
         if accion == 'eliminar':
             try:
                 producto_id = int(request.form.get('producto_id'))
@@ -176,6 +307,7 @@ def productos_view():
             except Exception:
                 return render_template('productos.html', productos=productos, inventario=inventario, error="Error al eliminar")
 
+        # --- ACCIÓN: CREAR O EDITAR ---
         nombre_producto = request.form.get('nombre_producto', '').strip()
         precio_str = request.form.get('precio', '0')
         stock_str = request.form.get('stock', '0')
@@ -208,11 +340,14 @@ def productos_view():
                         p['precio'] = precio
                         if imagen_url: p['imagen'] = imagen_url
                         break
+                
+                # Lógica corregida para editar el stock
                 inventario_data = load_data('inventario.json')
                 for item in inventario_data:
                     if item['id_inventario'] == producto_id:
                         item['cantidad'] = stock
                         break
+                        
                 save_data('productos.json', productos)
                 save_data('inventario.json', inventario_data)
                 return redirect(url_for('productos_view'))
@@ -362,7 +497,6 @@ def inventario_view():
 @app.route('/catalogo')
 @login_required
 def catalogo_view():
-    # Al cargar el catálogo, leemos el archivo fresco directamente del disco
     productos = load_data('productos.json')
     inventario = load_data('inventario.json')
     return render_template('catalogo.html', productos=productos, inventario=inventario)
@@ -424,52 +558,31 @@ def serve_manifest(): return app.send_static_file('manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return app.send_static_file('sw.js')
 
-# --- NUEVA RUTA API PARA AUMENTAR STOCK CON GUARDADO REAL ---
-@app.route('/api/aumentar_stock', methods=['POST'])
-@login_required
-def api_aumentar_stock():
-    try:
-        data = request.get_json()
-        producto_id = int(data.get('producto_id'))
-        cantidad_aumentar = int(data.get('cantidad_aumentar'))
-
-        if cantidad_aumentar <= 0:
-            return jsonify({'success': False, 'error': 'La cantidad debe ser mayor a 0'})
-
-        # Cargar el archivo real del disco
-        inventario_data = load_data('inventario.json')
-        stock_actualizado = False
-        
-        for item in inventario_data:
-            if item['id_inventario'] == producto_id:
-                item['cantidad'] = item['cantidad'] + cantidad_aumentar
-                stock_actualizado = True
-                nuevo_stock_valor = item['cantidad']
-                break
-        
-        if not stock_actualizado:
-            return jsonify({'success': False, 'error': 'No se encontró el producto en inventario'})
-
-        # GUARDAR EN EL DISCO DURO (Esto es lo que Render necesita)
-        resultado_guardado = save_data('inventario.json', inventario_data)
-        
-        if resultado_guardado:
-            return jsonify({'success': True, 'nuevo_stock': nuevo_stock_valor})
-        else:
-            return jsonify({'success': False, 'error': 'Error crítico al guardar el archivo en el disco.'})
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
 @app.route('/seed_database')
 @login_required
 def seed_database():
     if not load_data('clientes.json'):
-        save_data('clientes.json', [ {'id_cliente': 1, 'nombre': 'Ana María Gutiérrez', 'telefono': '71234567', 'email': 'ana@email.com'} ])
+        save_data('clientes.json', [
+            {'id_cliente': 1, 'nombre': 'Ana María Gutiérrez', 'telefono': '71234567', 'email': 'ana@email.com'},
+            {'id_cliente': 2, 'nombre': 'Carlos López', 'telefono': '72345678', 'email': 'carlos@email.com'},
+            {'id_cliente': 3, 'nombre': 'María Fernanda Rojas', 'telefono': '73456789', 'email': 'maria@email.com'},
+            {'id_cliente': 4, 'nombre': 'José Luis Martínez', 'telefono': '74567890', 'email': 'jose@email.com'},
+            {'id_cliente': 5, 'nombre': 'Lucía Torres', 'telefono': '75678901', 'email': 'lucia@email.com'}
+        ])
     if not load_data('empleados.json'):
-        save_data('empleados.json', [ {'id_empleado': 1, 'nombre': 'Pedro Rodríguez', 'cargo': 'Vendedor Senior', 'telefono': '70123456'} ])
+        save_data('empleados.json', [
+            {'id_empleado': 1, 'nombre': 'Pedro Rodríguez', 'cargo': 'Vendedor Senior', 'telefono': '70123456'},
+            {'id_empleado': 2, 'nombre': 'Laura Fernández', 'cargo': 'Cortadora de Cuero', 'telefono': '70234567'},
+            {'id_empleado': 3, 'nombre': 'Miguel Ángel Cruz', 'cargo': 'Encargado de Inventario', 'telefono': '70345678'},
+            {'id_empleado': 4, 'nombre': 'Sofía Herrera', 'cargo': 'Vendedora', 'telefono': '70456789'}
+        ])
     if not load_data('proveedores.json'):
-        save_data('proveedores.json', [ {'id_proveedor': 1, 'nombre_empresa': 'Cueros Premium S.A.', 'que_provee': 'Cueros vacunos y ovinos', 'telefono': '77123456', 'email': 'ventas@cuerospremium.com'} ])
+        save_data('proveedores.json', [
+            {'id_proveedor': 1, 'nombre_empresa': 'Cueros Premium S.A.', 'que_provee': 'Cueros vacunos y ovinos', 'telefono': '77123456', 'email': 'ventas@cuerospremium.com'},
+            {'id_proveedor': 2, 'nombre_empresa': 'Herrajes La Tijera', 'que_provee': 'Hebillas, broches y tachuelas', 'telefono': '77234567', 'email': 'info@herrajes.com'},
+            {'id_proveedor': 3, 'nombre_empresa': 'Hilos y Textiles Bolivia', 'que_provee': 'Hilos encerados y nylon', 'telefono': '77345678', 'email': 'contacto@hilostextiles.bo'},
+            {'id_proveedor': 4, 'nombre_empresa': 'Maquilas y Bordados', 'que_provee': 'Parches y grabados láser', 'telefono': '77456789', 'email': 'maquilas@bordados.com'}
+        ])
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
