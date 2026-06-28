@@ -267,35 +267,7 @@ def productos_view():
     if request.method == 'POST':
         accion = request.form.get('accion')
         
-        # --- ACCIÓN: AUMENTAR STOCK (CORREGIDO) ---
-        if accion == 'aumentar_stock':
-            try:
-                producto_id = int(request.form.get('producto_id'))
-                cantidad_aumentar = int(request.form.get('cantidad_aumentar', 0))
-                
-                if cantidad_aumentar <= 0:
-                    return render_template('productos.html', productos=productos, inventario=inventario, error="La cantidad a aumentar debe ser mayor a 0")
-
-                # Encontrar y actualizar el inventario del producto
-                inventario_data = load_data('inventario.json')
-                stock_actualizado = False
-                for item in inventario_data:
-                    if item['id_inventario'] == producto_id:
-                        item['cantidad'] = item['cantidad'] + cantidad_aumentar
-                        stock_actualizado = True
-                        break
-                
-                if stock_actualizado:
-                    save_data('inventario.json', inventario_data)
-                    return redirect(url_for('productos_view'))
-                else:
-                    return render_template('productos.html', productos=productos, inventario=inventario, error="No se encontró el registro de stock para este producto")
-            except ValueError:
-                return render_template('productos.html', productos=productos, inventario=inventario, error="Cantidad inválida")
-            except Exception as e:
-                return render_template('productos.html', productos=productos, inventario=inventario, error=f"Error al aumentar stock: {e}")
-
-        # --- ACCIÓN: ELIMINAR ---
+        # --- ACCIÓN: ELIMINAR (Por formulario tradicional) ---
         if accion == 'eliminar':
             try:
                 producto_id = int(request.form.get('producto_id'))
@@ -554,6 +526,38 @@ def page_not_found(e): return redirect(url_for('login'))
 def serve_manifest(): return app.send_static_file('manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return app.send_static_file('sw.js')
+
+# --- NUEVA RUTA API PARA AUMENTAR STOCK SIN RECARGAR ---
+@app.route('/api/aumentar_stock', methods=['POST'])
+@login_required
+def api_aumentar_stock():
+    try:
+        data = request.get_json()
+        producto_id = int(data.get('producto_id'))
+        cantidad_aumentar = int(data.get('cantidad_aumentar'))
+
+        if cantidad_aumentar <= 0:
+            return jsonify({'success': False, 'error': 'La cantidad debe ser mayor a 0'})
+
+        inventario_data = load_data('inventario.json')
+        stock_actualizado = False
+        
+        for item in inventario_data:
+            if item['id_inventario'] == producto_id:
+                item['cantidad'] = item['cantidad'] + cantidad_aumentar
+                stock_actualizado = True
+                break
+        
+        if not stock_actualizado:
+            return jsonify({'success': False, 'error': 'No se encontró el producto en inventario'})
+
+        save_data('inventario.json', inventario_data)
+        
+        # Devolvemos el nuevo número para que el HTML lo actualice
+        return jsonify({'success': True, 'nuevo_stock': item['cantidad']})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/seed_database')
 @login_required

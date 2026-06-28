@@ -73,7 +73,7 @@
                             {% endif %}
                         {% endfor %}
                         {% if ns.found %}
-                            <span class="badge" style="background:#e1e8ed; padding:4px 12px; border-radius:12px; font-weight:600; font-size:0.9rem;">
+                            <span class="badge" id="stock-badge-{{ p.id_producto }}" style="background:#e1e8ed; padding:4px 12px; border-radius:12px; font-weight:600; font-size:0.9rem;">
                                 {{ ns.stock_val }}
                             </span>
                         {% else %}
@@ -83,12 +83,12 @@
                     <td>
                         <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
                             <!-- Botón AUMENTAR STOCK -->
-                            <button class="btn-icon" onclick="openStockModal('{{ p.id_producto }}', '{{ p.nombre_producto }}')" title="Aumentar Stock" style="color: #27ae60;">
+                            <button class="btn-icon" onclick="openStockModal({{ p.id_producto }}, '{{ p.nombre_producto }}')" title="Aumentar Stock" style="color: #27ae60;">
                                 <i class="fa-solid fa-plus-circle" style="font-size: 1.3rem;"></i>
                             </button>
                             
                             <!-- Botón EDITAR -->
-                            <button class="btn-icon" onclick="toggleEdit('{{ p.id_producto }}')" title="Editar">
+                            <button class="btn-icon" onclick="toggleEdit({{ p.id_producto }})" title="Editar">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
 
@@ -142,7 +142,7 @@
                                     <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
                                         <i class="fa-solid fa-floppy-disk"></i> Guardar
                                     </button>
-                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
+                                    <button type="button" onclick="toggleEdit({{ p.id_producto }})" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
                                         Cancelar
                                     </button>
                                 </div>
@@ -166,25 +166,24 @@
     <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
         <h3 style="margin-top: 0; color: #27ae60;"><i class="fa-solid fa-cart-plus"></i> Aumentar Stock</h3>
         <p style="color: #555;">¿Cuántas unidades deseas agregar a <strong id="modalProductName" style="color: #2c3e50;"></strong>?</p>
-        <form method="POST" id="stockForm">
-            <input type="hidden" name="accion" value="aumentar_stock">
-            <input type="hidden" name="producto_id" id="modalProductId" value="">
-            <div class="input-group" style="margin-bottom: 20px;">
-                <label for="cantidad_aumentar">Cantidad a aumentar *</label>
-                <input type="number" name="cantidad_aumentar" id="cantidad_aumentar" min="1" placeholder="Ej: 10" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
-            </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button type="button" onclick="closeStockModal()" style="background: #95a5a6; padding: 10px 20px; border: none; color: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
-                <button type="submit" class="btn-primary" style="padding: 10px 20px; background: #27ae60;">Agregar Stock</button>
-            </div>
-        </form>
+        
+        <div style="margin-bottom: 20px;">
+            <label for="cantidad_aumentar">Cantidad a aumentar *</label>
+            <input type="number" id="cantidad_aumentar" min="1" placeholder="Ej: 10" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" onclick="closeStockModal()" style="background: #95a5a6; padding: 10px 20px; border: none; color: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
+            <button type="button" onclick="ejecutarAumentoStock()" class="btn-primary" style="padding: 10px 20px; background: #27ae60;">Agregar Stock</button>
+        </div>
     </div>
 </div>
 
 <!-- SCRIPTS -->
 <script>
+    let modalProductId = null;
+
     function openStockModal(id, name) {
-        document.getElementById('modalProductId').value = id;
+        modalProductId = id;
         document.getElementById('modalProductName').innerText = name;
         document.getElementById('stockModal').style.display = 'flex';
         document.getElementById('cantidad_aumentar').value = '';
@@ -193,6 +192,7 @@
 
     function closeStockModal() {
         document.getElementById('stockModal').style.display = 'none';
+        modalProductId = null;
     }
 
     document.getElementById('stockModal').addEventListener('click', function(e) {
@@ -200,6 +200,57 @@
             closeStockModal();
         }
     });
+
+    // NUEVA FUNCIÓN: Envía los datos usando Fetch sin recargar la página
+    async function ejecutarAumentoStock() {
+        const cantidad = parseInt(document.getElementById('cantidad_aumentar').value);
+        
+        if (!modalProductId) {
+            alert("Error: ID de producto no encontrado.");
+            return;
+        }
+        
+        if (!cantidad || cantidad <= 0) {
+            alert("Por favor, ingresa una cantidad válida mayor a 0.");
+            return;
+        }
+
+        // Bloquear botón mientras envía
+        const btn = document.querySelector('#stockModal .btn-primary');
+        btn.innerText = 'Guardando...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/aumentar_stock', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    producto_id: modalProductId,
+                    cantidad_aumentar: cantidad
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Actualizar el número en la tabla SIN recargar la página
+                const badge = document.getElementById(`stock-badge-${modalProductId}`);
+                if (badge) {
+                    badge.innerText = data.nuevo_stock;
+                }
+                closeStockModal();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error de conexión: ' + error);
+        } finally {
+            btn.innerText = 'Agregar Stock';
+            btn.disabled = false;
+        }
+    }
 
     function toggleEdit(id) {
         const editRow = document.getElementById(`edit-row-${id}`);
