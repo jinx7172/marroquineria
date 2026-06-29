@@ -238,7 +238,7 @@ def home():
 @app.route('/clientes', methods=['GET', 'POST'])
 @login_required
 def clientes_view():
-    clientes = load_data('clientes.json')  # Lee el archivo real del disco
+    clientes = load_data('clientes.json')
     if request.method == 'POST':
         accion = request.form.get('accion')
         if accion == 'eliminar':
@@ -334,6 +334,36 @@ def productos_view():
     if request.method == 'POST':
         accion = request.form.get('accion')
         
+        # --- ACCIÓN: AUMENTAR STOCK ---
+        if accion == 'aumentar_stock':
+            try:
+                producto_id = int(request.form.get('producto_id'))
+                cantidad_aumentar = int(request.form.get('cantidad_aumentar', 0))
+                
+                if cantidad_aumentar <= 0:
+                    return render_template('productos.html', productos=productos, error="La cantidad a aumentar debe ser mayor a 0")
+
+                # Buscamos el producto y sumamos al stock
+                stock_actualizado = False
+                for item in productos:
+                    if item['id_producto'] == producto_id:
+                        if 'stock' not in item:
+                            item['stock'] = 0
+                        item['stock'] += cantidad_aumentar
+                        stock_actualizado = True
+                        break
+                
+                if stock_actualizado:
+                    save_data('productos.json', productos)
+                    return redirect(url_for('productos_view'))
+                else:
+                    return render_template('productos.html', productos=productos, error="No se encontró el producto")
+            except ValueError:
+                return render_template('productos.html', productos=productos, error="Cantidad inválida")
+            except Exception as e:
+                return render_template('productos.html', productos=productos, error=f"Error al aumentar stock: {e}")
+
+        # --- ACCIÓN: ELIMINAR ---
         if accion == 'eliminar':
             try:
                 producto_id = int(request.form.get('producto_id'))
@@ -343,6 +373,8 @@ def productos_view():
             except Exception:
                 return render_template('productos.html', productos=productos, error="Error al eliminar")
 
+        # --- ACCIÓN: CREAR O EDITAR ---
+        # NOTA: Solo validamos nombre y precio si NO es 'aumentar_stock'
         nombre_producto = request.form.get('nombre_producto', '').strip()
         precio_str = request.form.get('precio', '0')
         if not nombre_producto:
@@ -502,7 +534,7 @@ def ventas_view():
                     p['stock'] = stock_actual - cantidad_vender
                     break
             
-            # 3. Guardar el cambio en el archivo (FUNDAMENTAL)
+            # 3. Guardar el cambio en el archivo
             save_data('productos.json', productos)
             
             # 4. Guardar la venta
