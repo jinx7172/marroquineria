@@ -3,7 +3,7 @@ import json
 import datetime
 import secrets
 import requests
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -28,13 +28,8 @@ GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', None)
 GIST_ID = None
 GIST_FILENAME = 'marcani_db.json'
 
-# --- FUNCIONES DE SINCRONIZACIÓN (PUENTE ENTRE RENDER Y TU PC) ---
-
+# --- FUNCIONES DE SINCRO DE DATOS ---
 def sync_from_github():
-    """
-    Descarga los datos desde GitHub Gist y los guarda en la carpeta data/ local de Render.
-    ¡Esto hace que Render y tu PC estén siempre en la misma versión!
-    """
     global GIST_ID, GITHUB_TOKEN
     if not GITHUB_TOKEN:
         return False
@@ -64,7 +59,6 @@ def sync_from_github():
                 raw_response = requests.get(raw_url)
                 if raw_response.status_code == 200:
                     contenido = raw_response.json()
-                    # Escribimos los datos de GitHub en la carpeta local de Render
                     for tabla, datos in contenido.items():
                         filepath = os.path.join(DATA_DIR, f"{tabla}.json")
                         with open(filepath, 'w', encoding='utf-8') as f:
@@ -75,9 +69,6 @@ def sync_from_github():
     return False
 
 def sync_to_github():
-    """
-    Toma todos los archivos .json de tu carpeta data/ y los sube a la Gist de GitHub.
-    """
     global GIST_ID, GITHUB_TOKEN
     if not GITHUB_TOKEN:
         return False
@@ -133,13 +124,8 @@ def sync_to_github():
 
 # --- FUNCIONES DE BASE DE DATOS ---
 def load_data(filename):
-    """
-    Lee el archivo .json de la carpeta data. 
-    Si el archivo no existe, lo crea vacío.
-    """
     local_path = os.path.join(DATA_DIR, filename)
     if not os.path.exists(local_path):
-        # Intentamos descargar de GitHub si es la primera vez
         if sync_from_github():
             pass
     if not os.path.exists(local_path):
@@ -153,9 +139,6 @@ def load_data(filename):
         return []
 
 def save_data(filename, data):
-    """
-    Guarda los datos en el archivo .json local y automáticamente los sube a GitHub.
-    """
     local_path = os.path.join(DATA_DIR, filename)
     try:
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -163,7 +146,6 @@ def save_data(filename, data):
             json.dump(data, f, indent=4, ensure_ascii=False)
     except:
         pass
-    # Subimos el cambio a GitHub para que Render y tu PC estén sincronizados
     sync_to_github()
     return True
 
@@ -256,7 +238,7 @@ def home():
 @app.route('/clientes', methods=['GET', 'POST'])
 @login_required
 def clientes_view():
-    clientes = load_data('clientes.json')
+    clientes = load_data('clientes.json')  # Lee el archivo real del disco
     if request.method == 'POST':
         accion = request.form.get('accion')
         if accion == 'eliminar':
@@ -275,72 +257,6 @@ def clientes_view():
         save_data('clientes.json', clientes)
         return redirect(url_for('clientes_view'))
     return render_template('clientes.html', clientes=clientes, error=None)
-
-@app.route('/productos', methods=['GET', 'POST'])
-@login_required
-def productos_view():
-    productos = load_data('productos.json')
-    
-    if request.method == 'POST':
-        accion = request.form.get('accion')
-        
-        if accion == 'eliminar':
-            try:
-                producto_id = int(request.form.get('producto_id'))
-                productos = [p for p in productos if p['id_producto'] != producto_id]
-                save_data('productos.json', productos)
-                return redirect(url_for('productos_view'))
-            except Exception:
-                return render_template('productos.html', productos=productos, error="Error al eliminar")
-
-        nombre_producto = request.form.get('nombre_producto', '').strip()
-        precio_str = request.form.get('precio', '0')
-        if not nombre_producto:
-            return render_template('productos.html', productos=productos, error="El nombre es obligatorio")
-        try:
-            precio = float(precio_str)
-            if precio <= 0: raise ValueError
-        except ValueError:
-            return render_template('productos.html', productos=productos, error="Precio inválido")
-        
-        imagen_url = ""
-        if 'imagen_file' in request.files:
-            file = request.files['imagen_file']
-            if file and file.filename != '' and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                unique_name = secrets.token_hex(8) + "_" + filename
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
-                imagen_url = url_for('static', filename='uploads/' + unique_name)
-        if not imagen_url:
-            imagen_url = request.form.get('imagen_url', '').strip()
-
-        if accion == 'editar':
-            try:
-                producto_id = int(request.form.get('producto_id'))
-                for p in productos:
-                    if p['id_producto'] == producto_id:
-                        p['nombre_producto'] = nombre_producto
-                        p['precio'] = precio
-                        if imagen_url: p['imagen'] = imagen_url
-                        break
-                save_data('productos.json', productos)
-                return redirect(url_for('productos_view'))
-            except Exception as e:
-                return render_template('productos.html', productos=productos, error=f"Error al editar: {e}")
-        else:
-            data = load_data('productos.json')
-            new_id = len(data) + 1
-            nuevo_producto = {
-                'id_producto': new_id,
-                'nombre_producto': nombre_producto,
-                'precio': precio,
-                'imagen': imagen_url
-            }
-            data.append(nuevo_producto)
-            save_data('productos.json', data)
-            return redirect(url_for('productos_view'))
-            
-    return render_template('productos.html', productos=productos, error=None)
 
 @app.route('/empleados', methods=['GET', 'POST'])
 @login_required
@@ -409,6 +325,72 @@ def proveedores_view():
             save_data('proveedores.json', proveedores)
             return redirect(url_for('proveedores_view'))
     return render_template('proveedores.html', proveedores=proveedores, error=None)
+
+@app.route('/productos', methods=['GET', 'POST'])
+@login_required
+def productos_view():
+    productos = load_data('productos.json')
+    
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        
+        if accion == 'eliminar':
+            try:
+                producto_id = int(request.form.get('producto_id'))
+                productos = [p for p in productos if p['id_producto'] != producto_id]
+                save_data('productos.json', productos)
+                return redirect(url_for('productos_view'))
+            except Exception:
+                return render_template('productos.html', productos=productos, error="Error al eliminar")
+
+        nombre_producto = request.form.get('nombre_producto', '').strip()
+        precio_str = request.form.get('precio', '0')
+        if not nombre_producto:
+            return render_template('productos.html', productos=productos, error="El nombre es obligatorio")
+        try:
+            precio = float(precio_str)
+            if precio <= 0: raise ValueError
+        except ValueError:
+            return render_template('productos.html', productos=productos, error="Precio inválido")
+        
+        imagen_url = ""
+        if 'imagen_file' in request.files:
+            file = request.files['imagen_file']
+            if file and file.filename != '' and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                unique_name = secrets.token_hex(8) + "_" + filename
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
+                imagen_url = url_for('static', filename='uploads/' + unique_name)
+        if not imagen_url:
+            imagen_url = request.form.get('imagen_url', '').strip()
+
+        if accion == 'editar':
+            try:
+                producto_id = int(request.form.get('producto_id'))
+                for p in productos:
+                    if p['id_producto'] == producto_id:
+                        p['nombre_producto'] = nombre_producto
+                        p['precio'] = precio
+                        if imagen_url: p['imagen'] = imagen_url
+                        break
+                save_data('productos.json', productos)
+                return redirect(url_for('productos_view'))
+            except Exception as e:
+                return render_template('productos.html', productos=productos, error=f"Error al editar: {e}")
+        else:
+            data = load_data('productos.json')
+            new_id = len(data) + 1
+            nuevo_producto = {
+                'id_producto': new_id,
+                'nombre_producto': nombre_producto,
+                'precio': precio,
+                'imagen': imagen_url
+            }
+            data.append(nuevo_producto)
+            save_data('productos.json', data)
+            return redirect(url_for('productos_view'))
+            
+    return render_template('productos.html', productos=productos, error=None)
 
 @app.route('/inventario', methods=['GET', 'POST'])
 @login_required
@@ -550,7 +532,6 @@ def serve_manifest(): return app.send_static_file('manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return app.send_static_file('sw.js')
 
-# --- RUTA DE SEMBRADO (Llena la base de datos inicial) ---
 @app.route('/seed_database')
 @login_required
 def seed_database():
@@ -601,21 +582,6 @@ def seed_database():
             }
         ])
     return redirect(url_for('home'))
-
-# --- RUTA DE DIAGNÓSTICO PARA VERIFICAR EL ESTADO DE LOS DATOS ---
-@app.route('/debug_sync')
-@login_required
-def debug_sync():
-    clientes = load_data('clientes.json')
-    productos = load_data('productos.json')
-    inventario = load_data('inventario.json')
-    return jsonify({
-        "clientes": clientes,
-        "productos": productos,
-        "inventario": inventario,
-        "total_clientes": len(clientes),
-        "total_productos": len(productos)
-    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
