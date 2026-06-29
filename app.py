@@ -229,11 +229,60 @@ def logout():
 def home():
     clientes = load_data('clientes.json')
     ventas = load_data('ventas.json')
+    
+    # --- ESTADÍSTICAS GENERALES ---
     total_clientes = len(clientes)
     total_ventas_general = sum(v.get('total', 0) for v in ventas)
+    
+    # --- ESTADÍSTICAS DE HOY ---
     hoy = datetime.date.today().isoformat()
-    ganancias_hoy = sum(v.get('total', 0) for v in ventas if v.get('fecha') == hoy)
-    return render_template('home.html', total_clientes=total_clientes, total_ventas=total_ventas_general, ganancias_hoy=ganancias_hoy)
+    ganancias_hoy = 0
+    productos_vendidos_hoy = 0
+    for v in ventas:
+        if v.get('fecha') == hoy:
+            ganancias_hoy += v.get('total', 0)
+            productos_vendidos_hoy += v.get('cantidad', 0)
+    
+    # --- ESTADÍSTICAS DE LA SEMANA (Últimos 7 días) ---
+    hoy_date = datetime.date.today()
+    semana_data = {}  # Diccionario para guardar {fecha: {total, cantidad}}
+    
+    # Generar los nombres de los últimos 7 días (incluyendo hoy)
+    dias_semana = []
+    ganancias_semana_data = []
+    productos_semana_data = []
+    
+    for i in range(6, -1, -1):  # Del día -6 al día 0 (hoy)
+        fecha = hoy_date - datetime.timedelta(days=i)
+        fecha_str = fecha.isoformat()
+        # Formato amigable: "Lun 24", "Mar 25", etc.
+        nombre_dia = fecha.strftime('%a %d') 
+        dias_semana.append(nombre_dia)
+        
+        # Inicializar valores en 0 para este día
+        ganancias_semana_data.append(0)
+        productos_semana_data.append(0)
+        
+        # Buscar en las ventas
+        for v in ventas:
+            if v.get('fecha') == fecha_str:
+                ganancias_semana_data[-1] += v.get('total', 0)
+                productos_semana_data[-1] += v.get('cantidad', 0)
+    
+    # Calcular totales semanales (suma de los 7 días)
+    ganancias_semana = sum(ganancias_semana_data)
+    productos_vendidos_semana = sum(productos_semana_data)
+
+    return render_template('home.html', 
+                          total_clientes=total_clientes, 
+                          total_ventas=total_ventas_general, 
+                          ganancias_hoy=ganancias_hoy,
+                          productos_vendidos_hoy=productos_vendidos_hoy,
+                          ganancias_semana=ganancias_semana,
+                          productos_vendidos_semana=productos_vendidos_semana,
+                          dias_semana=dias_semana,
+                          ganancias_semana_data=ganancias_semana_data,
+                          productos_semana_data=productos_semana_data)
 
 @app.route('/clientes', methods=['GET', 'POST'])
 @login_required
@@ -343,21 +392,15 @@ def productos_view():
                 if cantidad_aumentar <= 0:
                     return render_template('productos.html', productos=productos, error="La cantidad a aumentar debe ser mayor a 0")
 
-                # Buscamos el producto y sumamos al stock
-                stock_actualizado = False
                 for item in productos:
                     if item['id_producto'] == producto_id:
                         if 'stock' not in item:
                             item['stock'] = 0
                         item['stock'] += cantidad_aumentar
-                        stock_actualizado = True
                         break
                 
-                if stock_actualizado:
-                    save_data('productos.json', productos)
-                    return redirect(url_for('productos_view'))
-                else:
-                    return render_template('productos.html', productos=productos, error="No se encontró el producto")
+                save_data('productos.json', productos)
+                return redirect(url_for('productos_view'))
             except ValueError:
                 return render_template('productos.html', productos=productos, error="Cantidad inválida")
             except Exception as e:
@@ -374,7 +417,6 @@ def productos_view():
                 return render_template('productos.html', productos=productos, error="Error al eliminar")
 
         # --- ACCIÓN: CREAR O EDITAR ---
-        # NOTA: Solo validamos nombre y precio si NO es 'aumentar_stock'
         nombre_producto = request.form.get('nombre_producto', '').strip()
         precio_str = request.form.get('precio', '0')
         if not nombre_producto:
