@@ -3,7 +3,7 @@ import json
 import datetime
 import secrets
 import requests
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -28,8 +28,13 @@ GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', None)
 GIST_ID = None
 GIST_FILENAME = 'marcani_db.json'
 
-# --- FUNCIONES DE SINCRO DE DATOS ---
+# --- FUNCIONES DE SINCRONIZACIÓN (PUENTE ENTRE RENDER Y TU PC) ---
+
 def sync_from_github():
+    """
+    Descarga los datos desde GitHub Gist y los guarda en la carpeta data/ local de Render.
+    ¡Esto hace que Render y tu PC estén siempre en la misma versión!
+    """
     global GIST_ID, GITHUB_TOKEN
     if not GITHUB_TOKEN:
         return False
@@ -59,6 +64,7 @@ def sync_from_github():
                 raw_response = requests.get(raw_url)
                 if raw_response.status_code == 200:
                     contenido = raw_response.json()
+                    # Escribimos los datos de GitHub en la carpeta local de Render
                     for tabla, datos in contenido.items():
                         filepath = os.path.join(DATA_DIR, f"{tabla}.json")
                         with open(filepath, 'w', encoding='utf-8') as f:
@@ -69,6 +75,9 @@ def sync_from_github():
     return False
 
 def sync_to_github():
+    """
+    Toma todos los archivos .json de tu carpeta data/ y los sube a la Gist de GitHub.
+    """
     global GIST_ID, GITHUB_TOKEN
     if not GITHUB_TOKEN:
         return False
@@ -124,8 +133,13 @@ def sync_to_github():
 
 # --- FUNCIONES DE BASE DE DATOS ---
 def load_data(filename):
+    """
+    Lee el archivo .json de la carpeta data. 
+    Si el archivo no existe, lo crea vacío.
+    """
     local_path = os.path.join(DATA_DIR, filename)
     if not os.path.exists(local_path):
+        # Intentamos descargar de GitHub si es la primera vez
         if sync_from_github():
             pass
     if not os.path.exists(local_path):
@@ -139,6 +153,9 @@ def load_data(filename):
         return []
 
 def save_data(filename, data):
+    """
+    Guarda los datos en el archivo .json local y automáticamente los sube a GitHub.
+    """
     local_path = os.path.join(DATA_DIR, filename)
     try:
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -146,6 +163,7 @@ def save_data(filename, data):
             json.dump(data, f, indent=4, ensure_ascii=False)
     except:
         pass
+    # Subimos el cambio a GitHub para que Render y tu PC estén sincronizados
     sync_to_github()
     return True
 
@@ -532,6 +550,7 @@ def serve_manifest(): return app.send_static_file('manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return app.send_static_file('sw.js')
 
+# --- RUTA DE SEMBRADO (Llena la base de datos inicial) ---
 @app.route('/seed_database')
 @login_required
 def seed_database():
@@ -557,7 +576,6 @@ def seed_database():
             {'id_proveedor': 3, 'nombre_empresa': 'Hilos y Textiles Bolivia', 'que_provee': 'Hilos encerados y nylon', 'telefono': '77345678', 'email': 'contacto@hilostextiles.bo'},
             {'id_proveedor': 4, 'nombre_empresa': 'Maquilas y Bordados', 'que_provee': 'Parches y grabados láser', 'telefono': '77456789', 'email': 'maquilas@bordados.com'}
         ])
-    # CORREGIDO: Bloque de inventario con la sintaxis correcta
     if not load_data('inventario.json'):
         save_data('inventario.json', [
             {
@@ -583,6 +601,21 @@ def seed_database():
             }
         ])
     return redirect(url_for('home'))
+
+# --- RUTA DE DIAGNÓSTICO PARA VERIFICAR EL ESTADO DE LOS DATOS ---
+@app.route('/debug_sync')
+@login_required
+def debug_sync():
+    clientes = load_data('clientes.json')
+    productos = load_data('productos.json')
+    inventario = load_data('inventario.json')
+    return jsonify({
+        "clientes": clientes,
+        "productos": productos,
+        "inventario": inventario,
+        "total_clientes": len(clientes),
+        "total_productos": len(productos)
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
