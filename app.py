@@ -3,6 +3,7 @@ import json
 import datetime
 import secrets
 import requests
+import re
 from flask import Flask, render_template, request, redirect, url_for, session
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -27,6 +28,21 @@ app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30)
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', None)
 GIST_ID = None
 GIST_FILENAME = 'marcani_db.json'
+
+# --- FUNCIONES DE VALIDACIÓN ---
+def validar_nombre(nombre):
+    """Solo permite letras y espacios."""
+    return bool(re.fullmatch(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$", nombre))
+
+def validar_telefono(telefono):
+    """Solo permite números, espacios, guiones y el símbolo +."""
+    if not telefono: return True # El teléfono es opcional
+    return bool(re.fullmatch(r"^[\d\s\+\-]+$", telefono))
+
+def validar_email(email):
+    """Si se proporciona, debe ser @gmail.com. Si está vacío, es válido."""
+    if not email: return True
+    return email.endswith('@gmail.com')
 
 # --- FUNCIONES DE SINCRO DE DATOS ---
 def sync_from_github():
@@ -175,6 +191,11 @@ def register():
         if password != confirm_password:
             return render_template('auth/register.html', error="Las contraseñas no coinciden.")
 
+        if not validar_nombre(nombre):
+            return render_template('auth/register.html', error="El nombre solo debe contener letras y espacios.")
+        if not email.endswith('@gmail.com'):
+            return render_template('auth/register.html', error="El correo debe ser una dirección de Gmail (@gmail.com).")
+
         usuarios = load_data('usuarios.json')
         for u in usuarios:
             if u['email'] == email:
@@ -230,11 +251,9 @@ def home():
     clientes = load_data('clientes.json')
     ventas = load_data('ventas.json')
     
-    # --- ESTADÍSTICAS GENERALES ---
     total_clientes = len(clientes)
     total_ventas_general = sum(v.get('total', 0) for v in ventas)
     
-    # --- ESTADÍSTICAS DE HOY ---
     hoy = datetime.date.today().isoformat()
     ganancias_hoy = 0
     productos_vendidos_hoy = 0
@@ -243,33 +262,24 @@ def home():
             ganancias_hoy += v.get('total', 0)
             productos_vendidos_hoy += v.get('cantidad', 0)
     
-    # --- ESTADÍSTICAS DE LA SEMANA (Últimos 7 días) ---
     hoy_date = datetime.date.today()
-    semana_data = {}  # Diccionario para guardar {fecha: {total, cantidad}}
-    
-    # Generar los nombres de los últimos 7 días (incluyendo hoy)
     dias_semana = []
     ganancias_semana_data = []
     productos_semana_data = []
     
-    for i in range(6, -1, -1):  # Del día -6 al día 0 (hoy)
+    for i in range(6, -1, -1):
         fecha = hoy_date - datetime.timedelta(days=i)
         fecha_str = fecha.isoformat()
-        # Formato amigable: "Lun 24", "Mar 25", etc.
         nombre_dia = fecha.strftime('%a %d') 
         dias_semana.append(nombre_dia)
-        
-        # Inicializar valores en 0 para este día
         ganancias_semana_data.append(0)
         productos_semana_data.append(0)
         
-        # Buscar en las ventas
         for v in ventas:
             if v.get('fecha') == fecha_str:
                 ganancias_semana_data[-1] += v.get('total', 0)
                 productos_semana_data[-1] += v.get('cantidad', 0)
     
-    # Calcular totales semanales (suma de los 7 días)
     ganancias_semana = sum(ganancias_semana_data)
     productos_vendidos_semana = sum(productos_semana_data)
 
@@ -298,10 +308,21 @@ def clientes_view():
                 return redirect(url_for('clientes_view'))
             except Exception:
                 return render_template('clientes.html', clientes=clientes, error="Error al eliminar")
+        
         nombre = request.form.get('nombre', '').strip()
+        telefono = request.form.get('telefono', '').strip()
+        email = request.form.get('email', '').strip()
+        
         if not nombre:
             return render_template('clientes.html', clientes=clientes, error="El nombre es obligatorio")
-        nuevo_cliente = {'id_cliente': len(clientes) + 1, 'nombre': nombre, 'telefono': request.form.get('telefono', ''), 'email': request.form.get('email', '')}
+        if not validar_nombre(nombre):
+            return render_template('clientes.html', clientes=clientes, error="El nombre solo debe contener letras y espacios.")
+        if not validar_telefono(telefono):
+            return render_template('clientes.html', clientes=clientes, error="El teléfono contiene caracteres no válidos. Solo se permiten números, + y -.")
+        if not validar_email(email):
+            return render_template('clientes.html', clientes=clientes, error="Si proporciona un correo, debe ser @gmail.com.")
+        
+        nuevo_cliente = {'id_cliente': len(clientes) + 1, 'nombre': nombre, 'telefono': telefono, 'email': email}
         clientes.append(nuevo_cliente)
         save_data('clientes.json', clientes)
         return redirect(url_for('clientes_view'))
@@ -321,10 +342,18 @@ def empleados_view():
                 return redirect(url_for('empleados_view'))
             except Exception:
                 return render_template('empleados.html', empleados=empleados, error="Error al eliminar")
+        
         nombre = request.form.get('nombre', '').strip()
+        telefono = request.form.get('telefono', '').strip()
+        
         if not nombre:
             return render_template('empleados.html', empleados=empleados, error="El nombre es obligatorio")
-        nuevo_empleado = {'id_empleado': len(empleados) + 1, 'nombre': nombre, 'cargo': request.form.get('cargo', ''), 'telefono': request.form.get('telefono', '')}
+        if not validar_nombre(nombre):
+            return render_template('empleados.html', empleados=empleados, error="El nombre solo debe contener letras y espacios.")
+        if not validar_telefono(telefono):
+            return render_template('empleados.html', empleados=empleados, error="El teléfono contiene caracteres no válidos. Solo se permiten números, + y -.")
+        
+        nuevo_empleado = {'id_empleado': len(empleados) + 1, 'nombre': nombre, 'cargo': request.form.get('cargo', ''), 'telefono': telefono}
         empleados.append(nuevo_empleado)
         save_data('empleados.json', empleados)
         return redirect(url_for('empleados_view'))
@@ -383,7 +412,6 @@ def productos_view():
     if request.method == 'POST':
         accion = request.form.get('accion')
         
-        # --- ACCIÓN: AUMENTAR STOCK ---
         if accion == 'aumentar_stock':
             try:
                 producto_id = int(request.form.get('producto_id'))
@@ -406,7 +434,6 @@ def productos_view():
             except Exception as e:
                 return render_template('productos.html', productos=productos, error=f"Error al aumentar stock: {e}")
 
-        # --- ACCIÓN: ELIMINAR ---
         if accion == 'eliminar':
             try:
                 producto_id = int(request.form.get('producto_id'))
@@ -416,7 +443,6 @@ def productos_view():
             except Exception:
                 return render_template('productos.html', productos=productos, error="Error al eliminar")
 
-        # --- ACCIÓN: CREAR O EDITAR ---
         nombre_producto = request.form.get('nombre_producto', '').strip()
         precio_str = request.form.get('precio', '0')
         if not nombre_producto:
@@ -560,7 +586,6 @@ def ventas_view():
             if not producto_encontrado:
                 return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error="Producto no encontrado")
             
-            # 1. Verificar stock disponible
             stock_actual = 0
             for p in productos:
                 if p['id_producto'] == id_producto:
@@ -570,16 +595,13 @@ def ventas_view():
             if stock_actual < cantidad_vender:
                 return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error=f"Stock insuficiente. Solo hay {stock_actual} unidades disponibles.")
             
-            # 2. Restar stock del producto
             for p in productos:
                 if p['id_producto'] == id_producto:
                     p['stock'] = stock_actual - cantidad_vender
                     break
             
-            # 3. Guardar el cambio en el archivo
             save_data('productos.json', productos)
             
-            # 4. Guardar la venta
             total = precio_unitario * cantidad_vender
             ventas_data = load_data('ventas.json')
             nueva_venta = {
@@ -611,11 +633,11 @@ def serve_sw(): return app.send_static_file('sw.js')
 def seed_database():
     if not load_data('clientes.json'):
         save_data('clientes.json', [
-            {'id_cliente': 1, 'nombre': 'Ana María Gutiérrez', 'telefono': '71234567', 'email': 'ana@email.com'},
-            {'id_cliente': 2, 'nombre': 'Carlos López', 'telefono': '72345678', 'email': 'carlos@email.com'},
-            {'id_cliente': 3, 'nombre': 'María Fernanda Rojas', 'telefono': '73456789', 'email': 'maria@email.com'},
-            {'id_cliente': 4, 'nombre': 'José Luis Martínez', 'telefono': '74567890', 'email': 'jose@email.com'},
-            {'id_cliente': 5, 'nombre': 'Lucía Torres', 'telefono': '75678901', 'email': 'lucia@email.com'}
+            {'id_cliente': 1, 'nombre': 'Ana María Gutiérrez', 'telefono': '71234567', 'email': 'ana@gmail.com'},
+            {'id_cliente': 2, 'nombre': 'Carlos López', 'telefono': '72345678', 'email': 'carlos@gmail.com'},
+            {'id_cliente': 3, 'nombre': 'María Fernanda Rojas', 'telefono': '73456789', 'email': 'maria@gmail.com'},
+            {'id_cliente': 4, 'nombre': 'José Luis Martínez', 'telefono': '74567890', 'email': 'jose@gmail.com'},
+            {'id_cliente': 5, 'nombre': 'Lucía Torres', 'telefono': '75678901', 'email': 'lucia@gmail.com'}
         ])
     if not load_data('empleados.json'):
         save_data('empleados.json', [

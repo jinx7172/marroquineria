@@ -12,7 +12,9 @@
         <input type="hidden" name="accion" value="crear">
         <div class="input-group">
             <label>Nombre completo *</label>
-            <input type="text" name="nombre" placeholder="Ej: María Gómez" required>
+            <input type="text" name="nombre" placeholder="Ej: María Gómez" required 
+                   pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+" 
+                   title="Solo se permiten letras y espacios.">
         </div>
         <div class="input-group">
             <label>Cargo</label>
@@ -20,7 +22,9 @@
         </div>
         <div class="input-group">
             <label>Teléfono</label>
-            <input type="tel" name="telefono" placeholder="+591 71234567">
+            <input type="tel" name="telefono" placeholder="+591 71234567"
+                   pattern="[\d\s\+\-]+" 
+                   title="Solo se permiten números, espacios, + y -.">
         </div>
         <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Registrar Empleado</button>
     </form>
@@ -40,7 +44,6 @@
                     <td>{{ e.cargo }}</td>
                     <td>{{ e.telefono }}</td>
                     <td>
-                        <!-- Botón para ELIMINAR -->
                         <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar a este empleado?');">
                             <input type="hidden" name="accion" value="eliminar">
                             <input type="hidden" name="empleado_id" value="{{ e.id_empleado }}">
