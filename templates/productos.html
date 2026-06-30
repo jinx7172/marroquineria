@@ -6,7 +6,6 @@
 <div class="alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
 {% endif %}
 
-<!-- Formulario para CREAR PRODUCTO -->
 <div class="form-container">
     <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Nuevo Producto</h3>
     <form method="POST" enctype="multipart/form-data">
@@ -33,12 +32,23 @@
             <label>O pegar URL de imagen</label>
             <input type="url" name="imagen_url" placeholder="https://ejemplo.com/imagen.jpg">
         </div>
+        
+        <!-- Checkbox para aparecer en catálogo como nuevo -->
+        <div class="input-group" style="flex: 1; min-width: 200px; display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 10px;">
+            <input type="checkbox" id="mostrar_como_nuevo" name="mostrar_como_nuevo" style="width: 20px; height: 20px; accent-color: var(--accent-color);">
+            <label for="mostrar_como_nuevo" style="margin: 0; font-weight: normal; cursor: pointer; color: var(--text-main);">
+                <i class="fa-solid fa-star" style="color: #f1c40f;"></i> Mostrar en Catálogo como <strong>"NUEVO"</strong>
+            </label>
+        </div>
+
         <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Crear Producto</button>
     </form>
 </div>
 
-<!-- Tabla con opción de EDICIÓN, AUMENTAR STOCK y ELIMINACIÓN -->
 <div class="table-container">
+    <div style="padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por ID o Producto...">
+    </div>
     <div class="table-responsive">
         <table>
             <thead>
@@ -51,7 +61,7 @@
                     <th>Acciones</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tableBody">
                 {% for p in productos %}
                 <tr id="row-{{ p.id_producto }}">
                     <td>{{ p.id_producto }}</td>
@@ -65,76 +75,72 @@
                     <td><strong>{{ p.nombre_producto }}</strong></td>
                     <td>${{ p.precio }}</td>
                     <td>
-                        <span class="badge" style="background:#e1e8ed; padding:4px 12px; border-radius:12px; font-weight:600; font-size:0.9rem;">
+                        <span class="badge-stock">
                             {{ p.stock if p.stock is defined else 0 }}
                         </span>
                     </td>
                     <td>
-                        <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
-                            <!-- Botón AUMENTAR STOCK -->
-                            <button class="btn-icon" onclick="openStockModal('{{ p.id_producto }}', '{{ p.nombre_producto }}')" title="Aumentar Stock" style="color: #27ae60;">
-                                <i class="fa-solid fa-plus-circle" style="font-size: 1.3rem;"></i>
+                        <button class="btn-icon" onclick="openStockModal('{{ p.id_producto }}', '{{ p.nombre_producto }}')" title="Aumentar Stock" style="color: #27ae60;">
+                            <i class="fa-solid fa-plus-circle" style="font-size: 1.3rem;"></i>
+                        </button>
+                        <button class="btn-icon" onclick="toggleEdit('{{ p.id_producto }}')" title="Editar">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este producto?');">
+                            <input type="hidden" name="accion" value="eliminar">
+                            <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
+                            <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
+                                <i class="fa-solid fa-trash-can"></i>
                             </button>
-                            
-                            <!-- Botón EDITAR -->
-                            <button class="btn-icon" onclick="toggleEdit('{{ p.id_producto }}')" title="Editar">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-
-                            <!-- Botón ELIMINAR -->
-                            <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este producto?');">
-                                <input type="hidden" name="accion" value="eliminar">
-                                <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
-                                <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </form>
-                        </div>
+                        </form>
                     </td>
                 </tr>
                 
-                <!-- FILA OCULTA PARA EDITAR -->
-                <tr id="edit-row-{{ p.id_producto }}" style="display: none; background-color: #f8fafc;">
+                <!-- FILA OCULTA PARA EDITAR (Corregida para modo oscuro) -->
+                <tr id="edit-row-{{ p.id_producto }}" style="display: none; background-color: var(--bg-body);">
                     <td colspan="6">
-                        <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px;">
+                        <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px; background-color: var(--card-bg);">
                             <h4 style="margin: 0 0 15px 0; color: var(--accent-color); font-size: 0.9rem;">
-                                <i class="fa-solid fa-pen"></i> Editando: <strong>{{ p.nombre_producto }}</strong>
+                                <i class="fa-solid fa-pen"></i> Editando: <strong style="color: var(--text-main);">{{ p.nombre_producto }}</strong>
                             </h4>
-
-                            <form method="POST" enctype="multipart/form-data" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; background: transparent; padding: 0; margin: 0; border: none;">
+                            <form method="POST" enctype="multipart/form-data" class="inline-form" style="background: transparent; padding: 0; border: none; display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
                                 <input type="hidden" name="accion" value="editar">
                                 <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
                                 
                                 <div class="input-group" style="min-width: 150px; flex: 1;">
-                                    <label style="font-size:0.7rem; font-weight:600;">Nombre</label>
-                                    <input type="text" name="nombre_producto" value="{{ p.nombre_producto }}" required style="width:100%;">
+                                    <label style="font-size:0.7rem;">Nombre</label>
+                                    <input type="text" name="nombre_producto" value="{{ p.nombre_producto }}" required>
+                                </div>
+                                <div class="input-group" style="min-width: 100px; flex: 0.5;">
+                                    <label style="font-size:0.7rem;">Precio</label>
+                                    <input type="number" step="0.01" name="precio" value="{{ p.precio }}" required>
+                                </div>
+                                <div class="input-group" style="min-width: 100px; flex: 0.5;">
+                                    <label style="font-size:0.7rem;">Nuevo Stock</label>
+                                    <input type="number" name="stock" value="{{ p.stock if p.stock is defined else 0 }}" required>
+                                </div>
+                                <div class="input-group" style="min-width: 150px; flex: 1;">
+                                    <label style="font-size:0.7rem;">Cambiar Imagen (Archivo)</label>
+                                    <input type="file" name="imagen_file" accept="image/*">
+                                </div>
+                                <div class="input-group" style="min-width: 150px; flex: 1;">
+                                    <label style="font-size:0.7rem;">O URL</label>
+                                    <input type="url" name="imagen_url" placeholder="https://...">
                                 </div>
                                 
-                                <div class="input-group" style="min-width: 100px; flex: 0.5;">
-                                    <label style="font-size:0.7rem; font-weight:600;">Precio ($)</label>
-                                    <input type="number" step="0.01" name="precio" value="{{ p.precio }}" required style="width:100%;">
-                                </div>
-
-                                <div class="input-group" style="min-width: 100px; flex: 0.5;">
-                                    <label style="font-size:0.7rem; font-weight:600;">Nuevo Stock</label>
-                                    <input type="number" name="stock" value="{{ p.stock if p.stock is defined else 0 }}" required style="width:100%;">
-                                </div>
-
-                                <div class="input-group" style="min-width: 150px; flex: 1;">
-                                    <label style="font-size:0.7rem; font-weight:600;">Cambiar Imagen (Archivo)</label>
-                                    <input type="file" name="imagen_file" accept="image/*" style="width:100%;">
-                                </div>
-                                
-                                <div class="input-group" style="min-width: 150px; flex: 1;">
-                                    <label style="font-size:0.7rem; font-weight:600;">O URL</label>
-                                    <input type="url" name="imagen_url" placeholder="https://..." style="width:100%;">
+                                <!-- Checkbox en Editar alineado -->
+                                <div class="input-group" style="flex: 0.5; min-width: 140px; display: flex; flex-direction: row; align-items: center; gap: 8px; padding-bottom: 5px;">
+                                    <input type="checkbox" id="edit_mostrar_como_nuevo_{{ p.id_producto }}" name="mostrar_como_nuevo" style="width: 18px; height: 18px; accent-color: var(--accent-color);" {% if p.mostrar_como_nuevo %}checked{% endif %}>
+                                    <label for="edit_mostrar_como_nuevo_{{ p.id_producto }}" style="margin: 0; font-weight: normal; cursor: pointer; font-size: 0.75rem; color: var(--text-main);">
+                                        Mostrar "NUEVO"
+                                    </label>
                                 </div>
 
                                 <div style="display: flex; gap: 10px; align-items: center; padding-bottom: 2px;">
-                                    <button type="submit" class="btn-primary" style="padding: 8px 20px; height: auto;">
+                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
                                         <i class="fa-solid fa-floppy-disk"></i> Guardar
                                     </button>
-                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 8px 20px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
+                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
                                         Cancelar
                                     </button>
                                 </div>
@@ -143,27 +149,24 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" style="text-align:center; padding: 30px; color: #95a5a6;">
-                    <i class="fa-regular fa-face-frown" style="font-size: 1.5rem; display:block; margin-bottom:10px;"></i>
-                    No hay productos registrados aún.
-                </td></tr>
+                <tr><td colspan="6" style="text-align:center; padding: 30px;">No hay productos registrados aún.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- MODAL PARA AUMENTAR STOCK (Oculto por defecto) -->
+<!-- Modal Aumentar Stock -->
 <div id="stockModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999;">
-    <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+    <div style="background: var(--card-bg); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border-light);">
         <h3 style="margin-top: 0; color: #27ae60;"><i class="fa-solid fa-cart-plus"></i> Aumentar Stock</h3>
-        <p style="color: #555;">¿Cuántas unidades deseas agregar a <strong id="modalProductName" style="color: #2c3e50;"></strong>?</p>
+        <p style="color: var(--text-light);">¿Cuántas unidades deseas agregar a <strong id="modalProductName" style="color: var(--text-main);"></strong>?</p>
         <form method="POST" id="stockForm">
             <input type="hidden" name="accion" value="aumentar_stock">
             <input type="hidden" name="producto_id" id="modalProductId" value="">
             <div class="input-group" style="margin-bottom: 20px;">
-                <label for="cantidad_aumentar">Cantidad a aumentar *</label>
-                <input type="number" name="cantidad_aumentar" id="cantidad_aumentar" min="1" placeholder="Ej: 10" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                <label for="cantidad_aumentar" style="color: var(--text-light);">Cantidad a aumentar *</label>
+                <input type="number" name="cantidad_aumentar" id="cantidad_aumentar" min="1" placeholder="Ej: 10" required>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button type="button" onclick="closeStockModal()" style="background: #95a5a6; padding: 10px 20px; border: none; color: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
@@ -173,9 +176,7 @@
     </div>
 </div>
 
-<!-- SCRIPTS -->
 <script>
-    // Funciones para el Modal de Stock
     function openStockModal(id, name) {
         document.getElementById('modalProductId').value = id;
         document.getElementById('modalProductName').innerText = name;
@@ -183,29 +184,41 @@
         document.getElementById('cantidad_aumentar').value = '';
         document.getElementById('cantidad_aumentar').focus();
     }
-
     function closeStockModal() {
         document.getElementById('stockModal').style.display = 'none';
     }
-
-    // Cerrar modal si se hace clic fuera de la caja
     document.getElementById('stockModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeStockModal();
-        }
+        if (e.target === this) { closeStockModal(); }
     });
 
-    // Función de edición existente
     function toggleEdit(id) {
         const editRow = document.getElementById(`edit-row-${id}`);
         const dataRow = document.getElementById(`row-${id}`);
         if (editRow.style.display === 'none') {
             editRow.style.display = 'table-row';
-            dataRow.style.backgroundColor = '#f1f9ff';
+            dataRow.style.backgroundColor = 'var(--bg-body)';
         } else {
             editRow.style.display = 'none';
             dataRow.style.backgroundColor = '';
         }
     }
+
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i].id.startsWith('edit-row-')) continue;
+            const cells = rows[i].getElementsByTagName('td');
+            if (cells.length > 0) {
+                const id = cells[0].textContent.toLowerCase();
+                const name = cells[2].textContent.toLowerCase();
+                if (id.includes(filter) || name.includes(filter)) {
+                    rows[i].style.display = '';
+                } else {
+                    rows[i].style.display = 'none';
+                }
+            }
+        }
+    });
 </script>
 {% endblock %}

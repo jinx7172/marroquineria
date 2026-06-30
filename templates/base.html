@@ -5,24 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Marcani - Gestión Empresarial</title>
     
-    <!-- Fuente e Iconos (igual que antes) -->
+    <!-- Script ANTI-FLASH BLANCO: Se ejecuta antes de que la página se pinte -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+        })();
+    </script>
+
+    <!-- Fuente Moderna -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    
-    <!-- CAMBIO CRUCIAL: Usar url_for para el Manifest -->
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    
-    <meta name="theme-color" content="#2c3e50">
+    <meta name="theme-color" content="#1a252f">
     <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
     <div class="layout-container">
-        <!-- Sidebar / Menú Lateral -->
-        <aside class="sidebar">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="brand-icon">
                     <i class="fa-solid fa-screwdriver-wrench"></i>
@@ -50,30 +60,41 @@
                 <a href="{{ url_for('inventario_view') }}" class="nav-item {% if 'inventario' in request.path %}active{% endif %}">
                     <i class="fa-solid fa-warehouse"></i> <span>Inventario</span>
                 </a>
-                <a href="{{ url_for('ventas_view') }}" class="nav-item {% if 'ventas' in request.path %}active{% endif %}">
-                    <i class="fa-solid fa-coins"></i> <span>Ventas</span>
-                </a>
                 <a href="{{ url_for('catalogo_view') }}" class="nav-item {% if 'catalogo' in request.path %}active{% endif %}">
                     <i class="fa-solid fa-store"></i> <span>Catálogo</span>
                 </a>
-                <!-- ... resto del sidebar ... -->
+                <a href="{{ url_for('ventas_view') }}" class="nav-item {% if 'ventas' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-coins"></i> <span>Ventas</span>
+                </a>
             </nav>
         </aside>
 
         <!-- Contenido Principal -->
         <main class="main-content">
             <header class="top-bar">
-                <h1 style="font-size: 1rem; display: flex; align-items: center;">
-                    <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> Panel de Control
-                </h1>
-                <div class="user-info" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
-                    <span style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9rem;">
+                <!-- Botón menú celular -->
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button onclick="toggleSidebar()" style="background:none; border:none; font-size:1.5rem; color:var(--text-main); display:none; cursor:pointer;" id="menuBtn">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <h1 style="display: flex; align-items: center;">
+                        <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> Panel de Control
+                    </h1>
+                </div>
+
+                <div class="user-info">
+                    <!-- Botón de Modo Oscuro -->
+                    <button class="theme-toggle" id="themeToggle" title="Cambiar tema">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+
+                    <span style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9rem; color: var(--text-main);">
                         <i class="fa-regular fa-user-circle" style="font-size: 1.2rem;"></i> 
                         <span style="max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             {{ session.get('user_name', 'Usuario') }}
                         </span>
                     </span>
-                    <a href="{{ url_for('logout') }}" style="background: #e74c3c; color: white; padding: 5px 15px; border-radius: 20px; text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 5px;">
+                    <a href="{{ url_for('logout') }}" style="background: var(--danger); color: white; padding: 5px 15px; border-radius: 20px; text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 5px;">
                         <i class="fa-solid fa-right-from-bracket"></i> Salir
                     </a>
                 </div>
@@ -85,22 +106,68 @@
         </main>
     </div>
     
+    <!-- SCRIPTS: Sidebar y Dark Mode -->
+    <script>
+        // --- Lógica del Menú Hamburguesa ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        if (window.innerWidth <= 768) {
+            document.getElementById('menuBtn').style.display = 'block';
+        }
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 768) {
+                document.getElementById('menuBtn').style.display = 'block';
+            } else {
+                document.getElementById('menuBtn').style.display = 'none';
+                document.getElementById('sidebar').classList.remove('open');
+            }
+        });
+
+        // --- Lógica del Modo Oscuro ---
+        const themeToggle = document.getElementById('themeToggle');
+        const icon = themeToggle.querySelector('i');
+        const currentTheme = localStorage.getItem('theme');
+
+        // Aplicar tema guardado al cargar (Refuerzo visual)
+        if (currentTheme === 'dark') {
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            
+            if (current === 'dark') {
+                html.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+        });
+    </script>
+
     <!-- Registro del Service Worker -->
     <script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-            // Usamos url_for para obtener la ruta exacta
-            const swUrl = "{{ url_for('static', filename='sw.js') }}";
-            
-            navigator.serviceWorker.register(swUrl)
-            .then(function(registration) {
-                console.log('ServiceWorker registrado con éxito en:', registration.scope);
-            })
-            .catch(function(error) {
-                console.log('Error al registrar el ServiceWorker:', error);
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                .then(function(registration) {
+                    console.log('ServiceWorker registrado:', registration.scope);
+                })
+                .catch(function(error) {
+                    console.log('Error SW:', error);
+                });
             });
-        });
-    }
-</script>
+        }
+    </script>
 </body>
 </html>

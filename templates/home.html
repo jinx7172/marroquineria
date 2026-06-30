@@ -1,136 +1,111 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- Encabezado con Botón de Venta Estilizado -->
+<!-- Encabezado con Botón de Venta -->
 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
-    <h1 class="section-header" style="margin: 0; border: none; padding: 0;">
-        <i class="fa-solid fa-bolt"></i> Panel de Control General
+    <h1 style="margin: 0; font-size: 1.8rem; color: var(--text-main);">
+        <i class="fa-solid fa-bolt" style="color: #3498db; margin-right: 8px;"></i>Panel de Control
     </h1>
     <a href="{{ url_for('ventas_view') }}" 
-       style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 12px 25px; border-radius: 30px; text-decoration: none; font-weight: bold; font-size: 1rem; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3); display: flex; align-items: center; gap: 10px; transition: transform 0.2s, box-shadow 0.2s;">
+       style="background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 8px;">
         <i class="fa-solid fa-cash-register"></i> Registrar Venta
     </a>
 </div>
 
-<div class="dashboard-grid">
-    <div class="card">
-        <div class="icon"><i class="fa-solid fa-users"></i></div>
-        <h3>Total Clientes</h3>
-        <p>{{ total_clientes }}</p>
+<!-- Tarjetas de Resumen -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+    <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border-light);">
+        <div style="font-size: 2rem; color: #3498db; margin-bottom: 5px;"><i class="fa-solid fa-users"></i></div>
+        <div style="font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px;">Total Clientes</div>
+        <div style="font-size: 2rem; font-weight: bold; color: var(--text-main);">{{ total_clientes }}</div>
     </div>
-    <div class="card">
-        <div class="icon"><i class="fa-solid fa-coins"></i></div>
-        <h3>Ingresos Totales</h3>
-        <p>${{ total_ventas }}</p>
+    <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border-light);">
+        <div style="font-size: 2rem; color: #f1c40f; margin-bottom: 5px;"><i class="fa-solid fa-coins"></i></div>
+        <div style="font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px;">Ingresos Totales</div>
+        <div style="font-size: 2rem; font-weight: bold; color: var(--text-main);">${{ "{:,.0f}".format(total_ventas) }}</div>
     </div>
-    <div class="card">
-        <div class="icon"><i class="fa-solid fa-calendar-day"></i></div>
-        <h3>Ganancias Hoy</h3>
-        <p>${{ ganancias_hoy }}</p>
+    <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border-light);">
+        <div style="font-size: 2rem; color: #e67e22; margin-bottom: 5px;"><i class="fa-solid fa-calendar-day"></i></div>
+        <div style="font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px;">Ganancias Hoy</div>
+        <div style="font-size: 2rem; font-weight: bold; color: var(--text-main);">${{ "{:,.0f}".format(ganancias_hoy) }}</div>
     </div>
-    <div class="card">
-        <div class="icon"><i class="fa-solid fa-cart-shopping"></i></div>
-        <h3>Vendidos Hoy</h3>
-        <p>{{ productos_vendidos_hoy }} uds.</p>
+    <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border-light);">
+        <div style="font-size: 2rem; color: #2ecc71; margin-bottom: 5px;"><i class="fa-solid fa-cart-shopping"></i></div>
+        <div style="font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px;">Vendidos Hoy</div>
+        <div style="font-size: 2rem; font-weight: bold; color: var(--text-main);">{{ productos_vendidos_hoy }} uds.</div>
     </div>
 </div>
 
-<!-- Sección de Gráficos Semanales -->
-<div style="margin-top: 30px; display: grid; grid-template-columns: 1fr; gap: 25px;">
+<!-- Resumen Semanal y Navegación -->
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; flex: 2; min-width: 250px;">
+        <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center; border-left: 4px solid #3498db; border: 1px solid var(--border-light);">
+            <div style="font-size: 1.5rem; color: #3498db;"><i class="fa-solid fa-chart-line"></i></div>
+            <div style="font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">Ganancias (Semana {{ offset_actual }})</div>
+            <div style="font-size: 1.8rem; font-weight: bold; color: #3498db;">${{ "{:,.0f}".format(ganancias_semana) }}</div>
+        </div>
+        <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center; border-left: 4px solid #2ecc71; border: 1px solid var(--border-light);">
+            <div style="font-size: 1.5rem; color: #2ecc71;"><i class="fa-solid fa-cubes"></i></div>
+            <div style="font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">Productos (Semana {{ offset_actual }})</div>
+            <div style="font-size: 1.8rem; font-weight: bold; color: #2ecc71;">{{ "{:,.0f}".format(productos_vendidos_semana) }} uds.</div>
+        </div>
+    </div>
     
-    <!-- Resumen Semanal -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div class="card" style="background: #d1f2eb;">
-            <div class="icon" style="color: #148f77;"><i class="fa-solid fa-chart-line"></i></div>
-            <h3>Ganancias (Última Semana)</h3>
-            <p>${{ ganancias_semana }}</p>
-        </div>
-        <div class="card" style="background: #dbeafe;">
-            <div class="icon" style="color: #1e40af;"><i class="fa-solid fa-cubes"></i></div>
-            <h3>Productos Vendidos (Semana)</h3>
-            <p>{{ productos_vendidos_semana }} uds.</p>
+    <!-- Controles Semanales -->
+    <div style="display: flex; align-items: center; gap: 10px; background: var(--card-bg); padding: 5px 15px; border-radius: 30px; border: 1px solid var(--border-light);">
+        <a href="?semana={{ offset_actual - 1 }}" style="background: #3498db; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none;">
+            <i class="fa-solid fa-chevron-left"></i>
+        </a>
+        <span style="font-weight: 600; color: var(--text-main); min-width: 80px; text-align: center; font-size: 0.9rem;">
+            {% if offset_actual == 0 %}Esta semana{% elif offset_actual == -1 %}Semana pasada{% else %}Hace {{ offset_actual|abs }} sem.{% endif %}
+        </span>
+        {% if offset_actual != 0 %}
+        <a href="?semana={{ offset_actual + 1 }}" style="background: #3498db; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none;">
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Listas Desglose Día/Semana (Reemplaza los gráficos) -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <!-- Lista de Ganancias -->
+    <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border-light); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h2 style="margin-top: 0; font-size: 1.2rem; color: var(--text-main); border-bottom: 2px solid var(--border-light); padding-bottom: 10px;">
+            <i class="fa-solid fa-dollar-sign" style="color: #3498db; margin-right: 8px;"></i> Desglose de Ganancias
+        </h2>
+        <div style="margin-top: 15px;">
+            {% for i in range(7) %}
+            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-light);">
+                <span style="font-weight: bold; color: var(--text-main);">{{ dias_semana[i] }}</span>
+                {% if ganancias_semana_data[i] > 0 %}
+                    <span style="color: #3498db; font-weight: bold;">${{ "{:,.0f}".format(ganancias_semana_data[i]) }}</span>
+                {% else %}
+                    <span style="color: var(--text-light);">Sin ventas</span>
+                {% endif %}
+            </div>
+            {% endfor %}
         </div>
     </div>
 
-    <!-- Gráficos -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <!-- Gráfico de Ganancias Semanales -->
-        <div style="background: white; border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 20px;">
-            <h4 style="margin-top: 0; color: #2c3e50; text-align: center;"><i class="fa-solid fa-chart-bar"></i> Ganancias Diarias (7 días)</h4>
-            <canvas id="ventasChart"></canvas>
-        </div>
-        
-        <!-- Gráfico de Productos Vendidos Semanales -->
-        <div style="background: white; border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 20px;">
-            <h4 style="margin-top: 0; color: #2c3e50; text-align: center;"><i class="fa-solid fa-chart-column"></i> Unidades Vendidas (7 días)</h4>
-            <canvas id="productosChart"></canvas>
+    <!-- Lista de Unidades Vendidas -->
+    <div style="background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border-light); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h2 style="margin-top: 0; font-size: 1.2rem; color: var(--text-main); border-bottom: 2px solid var(--border-light); padding-bottom: 10px;">
+            <i class="fa-solid fa-cubes" style="color: #2ecc71; margin-right: 8px;"></i> Desglose de Unidades
+        </h2>
+        <div style="margin-top: 15px;">
+            {% for i in range(7) %}
+            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-light);">
+                <span style="font-weight: bold; color: var(--text-main);">{{ dias_semana[i] }}</span>
+                {% if productos_semana_data[i] > 0 %}
+                    <span style="color: #2ecc71; font-weight: bold;">{{ "{:,.0f}".format(productos_semana_data[i]) }} uds.</span>
+                {% else %}
+                    <span style="color: var(--text-light);">Sin ventas</span>
+                {% endif %}
+            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
 
-<!-- INCLUSIÓN DE CHART.JS (Librería de Gráficos) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-    // --- DATOS PASADOS DESDE FLASK ---
-    const dias = JSON.parse('{{ dias_semana | tojson | safe }}');
-    const dataGanancias = JSON.parse('{{ ganancias_semana_data | tojson | safe }}');
-    const dataProductos = JSON.parse('{{ productos_semana_data | tojson | safe }}');
-
-    // --- GRÁFICO DE GANANCIAS ---
-    const ctxVentas = document.getElementById('ventasChart').getContext('2d');
-    new Chart(ctxVentas, {
-        type: 'bar',
-        data: {
-            labels: dias,
-            datasets: [{
-                label: 'Ganancias ($)',
-                data: dataGanancias,
-                backgroundColor: 'rgba(52, 152, 219, 0.6)',
-                borderColor: 'rgba(52, 152, 219, 1)',
-                borderWidth: 1,
-                borderRadius: 5
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-
-    // --- GRÁFICO DE PRODUCTOS ---
-    const ctxProductos = document.getElementById('productosChart').getContext('2d');
-    new Chart(ctxProductos, {
-        type: 'bar',
-        data: {
-            labels: dias,
-            datasets: [{
-                label: 'Unidades Vendidas',
-                data: dataProductos,
-                backgroundColor: 'rgba(46, 204, 113, 0.6)',
-                borderColor: 'rgba(46, 204, 113, 1)',
-                borderWidth: 1,
-                borderRadius: 5
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-</script>
 {% endblock %}

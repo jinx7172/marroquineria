@@ -32,12 +32,15 @@
 </div>
 
 <div class="table-container">
+    <div style="padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por ID o Nombre...">
+    </div>
     <div class="table-responsive">
         <table>
             <thead>
                 <tr><th>ID</th><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr>
             </thead>
-            <tbody>
+            <tbody id="tableBody">
                 {% for c in clientes %}
                 <tr>
                     <td>{{ c.id_cliente }}</td>
@@ -61,4 +64,24 @@
         </table>
     </div>
 </div>
+
+<script>
+    // Buscador en tiempo real para Clientes
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+        for (let i = 0; i < rows.length; i++) {
+            const cells = rows[i].getElementsByTagName('td');
+            if (cells.length > 0) {
+                const id = cells[0].textContent.toLowerCase();
+                const name = cells[1].textContent.toLowerCase();
+                if (id.includes(filter) || name.includes(filter)) {
+                    rows[i].style.display = '';
+                } else {
+                    rows[i].style.display = 'none';
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}

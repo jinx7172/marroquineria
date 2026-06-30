@@ -6,7 +6,6 @@
 <div class="alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
 {% endif %}
 
-<!-- Formulario para CREAR -->
 <div class="form-container">
     <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Registrar Material</h3>
     <form method="POST">
@@ -47,7 +46,6 @@
     </form>
 </div>
 
-<!-- Tabla con Edición y Eliminación -->
 <div class="table-container">
     <div class="table-responsive">
         <table>
@@ -68,17 +66,16 @@
                     <td><strong>{{ i.material }}</strong></td>
                     <td>{{ i.cantidad }}</td>
                     <td>
-                        <span style="background: #e1e8ed; padding:4px 8px; border-radius:12px; font-weight:600;">
+                        <!-- CORREGIDO: Clase badge-unidad -->
+                        <span class="badge-unidad">
                             {{ i.unidad_medida if i.unidad_medida else 'u' }}
                         </span>
                     </td>
                     <td><span style="background:#d1f2eb; padding:4px 8px; border-radius:12px; color:#148f77; font-weight:600;">{{ i.proveedor }}</span></td>
                     <td>
-                        <!-- Botón Editar -->
                         <button class="btn-icon" onclick="toggleEditInv('{{ i.id_inventario }}')" title="Editar">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
-                        <!-- Botón Eliminar -->
                         <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Eliminar este material?');">
                             <input type="hidden" name="accion" value="eliminar">
                             <input type="hidden" name="inventario_id" value="{{ i.id_inventario }}">
@@ -89,7 +86,6 @@
                     </td>
                 </tr>
 
-                <!-- FILA OCULTA PARA EDITAR -->
                 <tr id="edit-row-inv-{{ i.id_inventario }}" style="display: none; background-color: #f8fafc;">
                     <td colspan="6">
                         <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px;">
@@ -141,12 +137,10 @@
     </div>
 </div>
 
-<!-- JavaScript para mostrar/ocultar fila de edición -->
 <script>
     function toggleEditInv(id) {
         const editRow = document.getElementById(`edit-row-inv-${id}`);
         const dataRow = document.getElementById(`row-inv-${id}`);
-        
         if (editRow.style.display === 'none') {
             editRow.style.display = 'table-row';
             dataRow.style.backgroundColor = '#f1f9ff';

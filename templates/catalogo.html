@@ -2,12 +2,21 @@
 {% block content %}
 <h1 class="section-header"><i class="fa-solid fa-store"></i> Catálogo de Productos</h1>
 
-<div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+<div style="padding: 15px 20px; border-bottom: 1px solid var(--border-light); margin-bottom: 20px;">
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por ID o Producto...">
+</div>
+
+<div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));" id="catalogoGrid">
     {% for p in productos %}
-    <div style="background: white; border-radius: var(--radius); box-shadow: var(--shadow-md); overflow: hidden; border: 1px solid var(--border-light); transition: transform 0.2s;">
+    <div class="catalogo-card" style="background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-md); overflow: hidden; border: 1px solid var(--border-light); transition: transform 0.2s;">
         
-        <!-- Contenedor de imagen con ZOOM al hacer clic -->
         <div style="height: 200px; background: #f9fafb; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: zoom-in; position: relative; border-bottom: 1px solid var(--border-light);">
+            
+            <!-- Etiqueta NUEVO (Solo aparece si mostrar_como_nuevo es True) -->
+            {% if p.mostrar_como_nuevo %}
+                <span class="badge-new">NUEVO</span>
+            {% endif %}
+
             {% if p.imagen %}
                 <img src="{{ p.imagen }}" alt="{{ p.nombre_producto }}" 
                      style="width: 100%; height: 100%; object-fit: contain; padding: 10px; transition: transform 0.3s;"
@@ -16,22 +25,19 @@
                 <i class="fa-regular fa-image" style="font-size: 4rem; color: #d1d5db;"></i>
             {% endif %}
             
-            <!-- Etiqueta flotante de Zoom -->
-            {% if p.imagen %}
             <div style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 4px 8px; border-radius: 20px; font-size: 0.7rem;">
                 <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom
             </div>
-            {% endif %}
         </div>
         
         <div style="padding: 20px;">
-            <h3 style="margin: 0 0 10px 0; font-size: 1.1rem;">{{ p.nombre_producto }}</h3>
+            <h3 style="margin: 0 0 10px 0; font-size: 1.1rem; color: var(--text-main);">{{ p.nombre_producto }}</h3>
             <p style="font-size: 1.3rem; font-weight: 700; color: var(--accent-color); margin: 0 0 10px 0;">
                 ${{ p.precio }}
             </p>
             <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-light); padding-top: 10px;">
                 <span style="font-size: 0.85rem; color: var(--text-light);">Stock disponible:</span>
-                <span style="background: #e1e8ed; padding: 4px 12px; border-radius: 20px; font-weight: 600;">
+                <span class="badge-stock">
                     {{ p.stock if p.stock is defined else 0 }} uds.
                 </span>
             </div>
@@ -45,13 +51,12 @@
     {% endfor %}
 </div>
 
-<!-- MODAL DE ZOOM DE IMAGEN (Lightbox) -->
+<!-- Modal de Zoom -->
 <div id="imageZoomModal" onclick="closeImageZoom()" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; z-index: 10000; cursor: zoom-out;">
     <span style="position: absolute; top: 20px; right: 30px; color: white; font-size: 3rem; font-weight: bold; cursor: pointer;">&times;</span>
     <img id="zoomImage" src="" alt="Zoom" style="max-width: 90%; max-height: 90%; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
 </div>
 
-<!-- SCRIPTS PARA EL ZOOM -->
 <script>
     function openImageZoom(src) {
         if (!src) return;
@@ -59,16 +64,27 @@
         document.getElementById('imageZoomModal').style.display = 'flex';
         document.body.style.overflow = 'hidden';
     }
-
     function closeImageZoom() {
         document.getElementById('imageZoomModal').style.display = 'none';
         document.getElementById('zoomImage').src = '';
         document.body.style.overflow = 'auto';
     }
-
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeImageZoom();
+        if (e.key === 'Escape') { closeImageZoom(); }
+    });
+
+    // Buscador Catálogo
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const cards = document.getElementById('catalogoGrid').children;
+        for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const name = card.querySelector('h3').textContent.toLowerCase();
+            if (name.includes(filter)) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
         }
     });
 </script>

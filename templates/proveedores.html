@@ -31,28 +31,29 @@
 </div>
 
 <div class="table-container">
+    <div style="padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por ID o Empresa...">
+    </div>
     <div class="table-responsive">
         <table>
             <thead>
                 <tr><th>ID</th><th>Empresa</th><th>Provee</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr>
             </thead>
-            <tbody>
+            <tbody id="tableBody">
                 {% for p in proveedores %}
                 <tr id="row-{{ p.id_proveedor }}">
                     <td>{{ p.id_proveedor }}</td>
                     <td><strong>{{ p.nombre_empresa }}</strong></td>
-                    <td><span style="background: #e1e8ed; padding:4px 8px; border-radius:12px; font-size:0.8rem;">{{ p.que_provee }}</span></td>
+                    <td>
+                        <!-- CORREGIDO: Clase badge-proveedor -->
+                        <span class="badge-proveedor">{{ p.que_provee }}</span>
+                    </td>
                     <td>{{ p.telefono }}</td>
                     <td>{{ p.email }}</td>
                     <td>
-                        <!-- Botón para activar el modo edición -->
-                        <button class="btn-icon"
-                                onclick="toggleEditProv('{{ p.id_proveedor }}')"
-                                title="Editar">
+                        <button class="btn-icon" onclick="toggleEditProv({{ p.id_proveedor }})" title="Editar">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
-                        
-                        <!-- Botón para ELIMINAR (Con confirmación) -->
                         <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este proveedor?');">
                             <input type="hidden" name="accion" value="eliminar">
                             <input type="hidden" name="proveedor_id" value="{{ p.id_proveedor }}">
@@ -62,8 +63,6 @@
                         </form>
                     </td>
                 </tr>
-                
-                <!-- FILA OCULTA PARA EDITAR PROVEEDOR -->
                 <tr id="edit-row-{{ p.id_proveedor }}" style="display: none; background-color: #f8fafc;">
                     <td colspan="6">
                         <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px;">
@@ -73,34 +72,27 @@
                             <form method="POST" class="inline-form">
                                 <input type="hidden" name="accion" value="editar">
                                 <input type="hidden" name="proveedor_id" value="{{ p.id_proveedor }}">
-                                
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Empresa</label>
                                     <input type="text" name="nombre_empresa" value="{{ p.nombre_empresa }}" required>
                                 </div>
-                                
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Provee</label>
                                     <input type="text" name="que_provee" value="{{ p.que_provee }}" required>
                                 </div>
-
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Teléfono</label>
                                     <input type="text" name="telefono" value="{{ p.telefono }}">
                                 </div>
-                                
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Email</label>
                                     <input type="email" name="email" value="{{ p.email }}">
                                 </div>
-
                                 <div style="display: flex; gap: 10px; align-items: flex-end;">
                                     <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
                                         <i class="fa-solid fa-floppy-disk"></i> Guardar
                                     </button>
-                                    <button type="button"
-                                            onclick="toggleEditProv('{{ p.id_proveedor }}')"
-                                            style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
+                                    <button type="button" onclick="toggleEditProv({{ p.id_proveedor }})" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
                                         Cancelar
                                     </button>
                                 </div>
@@ -116,12 +108,10 @@
     </div>
 </div>
 
-<!-- JavaScript para mostrar/ocultar fila de edición de PROVEEDORES -->
 <script>
     function toggleEditProv(id) {
         const editRow = document.getElementById(`edit-row-${id}`);
         const dataRow = document.getElementById(`row-${id}`);
-        
         if (editRow.style.display === 'none') {
             editRow.style.display = 'table-row';
             dataRow.style.backgroundColor = '#f1f9ff';
@@ -130,5 +120,23 @@
             dataRow.style.backgroundColor = '';
         }
     }
+
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i].id.startsWith('edit-row-')) continue; // Saltar filas de edición
+            const cells = rows[i].getElementsByTagName('td');
+            if (cells.length > 0) {
+                const id = cells[0].textContent.toLowerCase();
+                const name = cells[1].textContent.toLowerCase();
+                if (id.includes(filter) || name.includes(filter)) {
+                    rows[i].style.display = '';
+                } else {
+                    rows[i].style.display = 'none';
+                }
+            }
+        }
+    });
 </script>
 {% endblock %}

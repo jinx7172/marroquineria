@@ -4,6 +4,7 @@ import datetime
 import secrets
 import requests
 import re
+import locale
 from flask import Flask, render_template, request, redirect, url_for, session
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -31,16 +32,13 @@ GIST_FILENAME = 'marcani_db.json'
 
 # --- FUNCIONES DE VALIDACIÓN ---
 def validar_nombre(nombre):
-    """Solo permite letras y espacios."""
     return bool(re.fullmatch(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$", nombre))
 
 def validar_telefono(telefono):
-    """Solo permite números, espacios, guiones y el símbolo +."""
-    if not telefono: return True # El teléfono es opcional
+    if not telefono: return True
     return bool(re.fullmatch(r"^[\d\s\+\-]+$", telefono))
 
 def validar_email(email):
-    """Si se proporciona, debe ser @gmail.com. Si está vacío, es válido."""
     if not email: return True
     return email.endswith('@gmail.com')
 
@@ -248,6 +246,8 @@ def logout():
 @app.route('/')
 @login_required
 def home():
+    offset_semanas = request.args.get('semana', default=0, type=int)
+    
     clientes = load_data('clientes.json')
     ventas = load_data('ventas.json')
     
@@ -262,19 +262,32 @@ def home():
             ganancias_hoy += v.get('total', 0)
             productos_vendidos_hoy += v.get('cantidad', 0)
     
+    # --- CÁLCULO DE LA SEMANA ---
     hoy_date = datetime.date.today()
+    
+    # Obtener el Lunes de la semana
+    year, week_num, day_of_week = hoy_date.isocalendar()
+    fecha_lunes = datetime.date.fromisocalendar(year, week_num + offset_semanas, 1)
+    
+    # Lista de nombres de días en español
+    nombres_dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    
     dias_semana = []
     ganancias_semana_data = []
     productos_semana_data = []
     
-    for i in range(6, -1, -1):
-        fecha = hoy_date - datetime.timedelta(days=i)
+    for i in range(0, 7):
+        fecha = fecha_lunes + datetime.timedelta(days=i)
         fecha_str = fecha.isoformat()
-        nombre_dia = fecha.strftime('%a %d') 
-        dias_semana.append(nombre_dia)
+        
+        # Generar el nombre del día
+        nombre_dia_final = f"{nombres_dias[i]} {fecha.day}"
+        dias_semana.append(nombre_dia_final)
+        
         ganancias_semana_data.append(0)
         productos_semana_data.append(0)
         
+        # Sumar las ventas de ese día
         for v in ventas:
             if v.get('fecha') == fecha_str:
                 ganancias_semana_data[-1] += v.get('total', 0)
@@ -292,7 +305,8 @@ def home():
                           productos_vendidos_semana=productos_vendidos_semana,
                           dias_semana=dias_semana,
                           ganancias_semana_data=ganancias_semana_data,
-                          productos_semana_data=productos_semana_data)
+                          productos_semana_data=productos_semana_data,
+                          offset_actual=offset_semanas)
 
 @app.route('/clientes', methods=['GET', 'POST'])
 @login_required
@@ -472,6 +486,7 @@ def productos_view():
                         p['nombre_producto'] = nombre_producto
                         p['precio'] = precio
                         if imagen_url: p['imagen'] = imagen_url
+                        p['mostrar_como_nuevo'] = 'mostrar_como_nuevo' in request.form
                         break
                 save_data('productos.json', productos)
                 return redirect(url_for('productos_view'))
@@ -484,7 +499,8 @@ def productos_view():
                 'id_producto': new_id,
                 'nombre_producto': nombre_producto,
                 'precio': precio,
-                'imagen': imagen_url
+                'imagen': imagen_url,
+                'mostrar_como_nuevo': 'mostrar_como_nuevo' in request.form
             }
             data.append(nuevo_producto)
             save_data('productos.json', data)
@@ -631,52 +647,6 @@ def serve_sw(): return app.send_static_file('sw.js')
 @app.route('/seed_database')
 @login_required
 def seed_database():
-    if not load_data('clientes.json'):
-        save_data('clientes.json', [
-            {'id_cliente': 1, 'nombre': 'Ana María Gutiérrez', 'telefono': '71234567', 'email': 'ana@gmail.com'},
-            {'id_cliente': 2, 'nombre': 'Carlos López', 'telefono': '72345678', 'email': 'carlos@gmail.com'},
-            {'id_cliente': 3, 'nombre': 'María Fernanda Rojas', 'telefono': '73456789', 'email': 'maria@gmail.com'},
-            {'id_cliente': 4, 'nombre': 'José Luis Martínez', 'telefono': '74567890', 'email': 'jose@gmail.com'},
-            {'id_cliente': 5, 'nombre': 'Lucía Torres', 'telefono': '75678901', 'email': 'lucia@gmail.com'}
-        ])
-    if not load_data('empleados.json'):
-        save_data('empleados.json', [
-            {'id_empleado': 1, 'nombre': 'Pedro Rodríguez', 'cargo': 'Vendedor Senior', 'telefono': '70123456'},
-            {'id_empleado': 2, 'nombre': 'Laura Fernández', 'cargo': 'Cortadora de Cuero', 'telefono': '70234567'},
-            {'id_empleado': 3, 'nombre': 'Miguel Ángel Cruz', 'cargo': 'Encargado de Inventario', 'telefono': '70345678'},
-            {'id_empleado': 4, 'nombre': 'Sofía Herrera', 'cargo': 'Vendedora', 'telefono': '70456789'}
-        ])
-    if not load_data('proveedores.json'):
-        save_data('proveedores.json', [
-            {'id_proveedor': 1, 'nombre_empresa': 'Cueros Premium S.A.', 'que_provee': 'Cueros vacunos y ovinos', 'telefono': '77123456', 'email': 'ventas@cuerospremium.com'},
-            {'id_proveedor': 2, 'nombre_empresa': 'Herrajes La Tijera', 'que_provee': 'Hebillas, broches y tachuelas', 'telefono': '77234567', 'email': 'info@herrajes.com'},
-            {'id_proveedor': 3, 'nombre_empresa': 'Hilos y Textiles Bolivia', 'que_provee': 'Hilos encerados y nylon', 'telefono': '77345678', 'email': 'contacto@hilostextiles.bo'},
-            {'id_proveedor': 4, 'nombre_empresa': 'Maquilas y Bordados', 'que_provee': 'Parches y grabados láser', 'telefono': '77456789', 'email': 'maquilas@bordados.com'}
-        ])
-    if not load_data('inventario.json'):
-        save_data('inventario.json', [
-            {
-                "id_inventario": 1, 
-                "material": "Cuero vacuno premium", 
-                "cantidad": 50, 
-                "unidad_medida": "m", 
-                "proveedor": "Cueros Premium S.A."
-            },
-            {
-                "id_inventario": 2, 
-                "material": "Hebillas de metal dorado", 
-                "cantidad": 200, 
-                "unidad_medida": "u", 
-                "proveedor": "Herrajes La Tijera"
-            },
-            {
-                "id_inventario": 3, 
-                "material": "Hilo encerado negro", 
-                "cantidad": 30, 
-                "unidad_medida": "rollos", 
-                "proveedor": "Hilos y Textiles Bolivia"
-            }
-        ])
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
