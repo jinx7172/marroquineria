@@ -171,10 +171,9 @@
     <!-- ASISTENTE DE IA LOCAL (NAVEGADOR)           -->
     <!-- ========================================== -->
     <script>
-        // --- VARIABLE DE ESTADO GLOBAL PARA SABER SI ESTÁBAMOS ESCUCHANDO ---
+        // --- VARIABLE DE ESTADO GLOBAL ---
         let isListeningGlobal = false;
 
-        // --- 1. CONFIGURACIÓN DE VOZ ---
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
@@ -222,8 +221,7 @@
                 }
             });
 
-            // --- 2. REACTIVACIÓN AL CARGAR LA PÁGINA ---
-            // Si el usuario estaba escuchando antes de recargar, reactivamos automáticamente
+            // --- REACTIVACIÓN AL CARGAR LA PÁGINA ---
             window.addEventListener('load', function() {
                 if (localStorage.getItem('voice_active') === 'true') {
                     setTimeout(() => {
@@ -231,11 +229,11 @@
                             recognition.start();
                             showVoiceBox();
                         } catch (e) {}
-                    }, 500); // Pequeño retraso para que la página cargue primero
+                    }, 500);
                 }
             });
 
-            // --- 3. PROCESAR EL TEXTO ---
+            // --- PROCESAR EL TEXTO ---
             recognition.onresult = async (event) => {
                 let finalTranscript = '';
                 let interimTranscript = '';
@@ -256,7 +254,6 @@
                     voiceHint.innerText = '✅ Acción ejecutada';
                     voiceText.innerText = resultado.mensaje;
 
-                    // Guardamos en localStorage que la voz está activa para cuando recargue la página
                     localStorage.setItem('voice_active', 'true');
 
                     // Ejecutar la acción
@@ -283,13 +280,20 @@
                     } else if (resultado.accion === 'buscar') {
                         const inputBusqueda = document.getElementById('searchInput');
                         if (inputBusqueda) {
+                            // 1. Escribimos el texto y forzamos la búsqueda
                             inputBusqueda.value = resultado.textoBusqueda;
-                            // Disparamos el evento de entrada y el de teclado para forzar la búsqueda
                             inputBusqueda.dispatchEvent(new Event('input', { bubbles: true }));
                             setTimeout(() => {
                                 inputBusqueda.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
                             }, 50);
-                            inputBusqueda.focus();
+                            
+                            // 2. SOLUCIÓN PARA CELULAR: Quitamos el foco para cerrar el teclado
+                            setTimeout(() => {
+                                inputBusqueda.blur();
+                            }, 300);
+
+                            // 3. Mensaje de confirmación
+                            voiceText.innerText = `🔍 Buscando "${resultado.textoBusqueda}"...`;
                         } else {
                             voiceText.innerText = "❌ No hay buscador en esta página.";
                         }
@@ -312,7 +316,6 @@
                 }
             };
             recognition.onend = () => {
-                // Si terminó inesperadamente pero debería seguir escuchando, lo reiniciamos
                 if (isListening) {
                     try {
                         recognition.start();
@@ -325,7 +328,7 @@
             console.log("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.");
         }
 
-        // --- 4. ANALIZADOR DE COMANDOS ---
+        // --- ANALIZADOR DE COMANDOS ---
         async function analizarComando(comando) {
             const cmd = comando.toLowerCase().trim();
 
