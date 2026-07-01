@@ -283,16 +283,28 @@
                             // 1. Escribimos el texto y forzamos la búsqueda
                             inputBusqueda.value = resultado.textoBusqueda;
                             inputBusqueda.dispatchEvent(new Event('input', { bubbles: true }));
-                            setTimeout(() => {
-                                inputBusqueda.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
-                            }, 50);
+                            inputBusqueda.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
                             
-                            // 2. SOLUCIÓN PARA CELULAR: Quitamos el foco para cerrar el teclado
-                            setTimeout(() => {
-                                inputBusqueda.blur();
-                            }, 300);
+                            // 2. INTELIGENCIA: Crear un observador que cierra el teclado SOLO cuando la tabla se actualiza
+                            const tabla = document.querySelector('table tbody');
+                            if (tabla) {
+                                const observer = new MutationObserver(() => {
+                                    // Cuando la tabla cambia (los resultados aparecen), cerramos el teclado
+                                    inputBusqueda.blur();
+                                    observer.disconnect(); // Dejamos de observar para no ralentizar
+                                });
+                                observer.observe(tabla, { childList: true, subtree: true });
+                                
+                                // Plan B (Seguro): Si pasan 2 segundos y el observador no se activó, cerramos igual
+                                setTimeout(() => {
+                                    inputBusqueda.blur();
+                                    observer.disconnect();
+                                }, 2000);
+                            } else {
+                                // Si no hay tabla, cerramos el teclado directamente
+                                setTimeout(() => inputBusqueda.blur(), 500);
+                            }
 
-                            // 3. Mensaje de confirmación
                             voiceText.innerText = `🔍 Buscando "${resultado.textoBusqueda}"...`;
                         } else {
                             voiceText.innerText = "❌ No hay buscador en esta página.";
