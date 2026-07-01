@@ -171,13 +171,16 @@
     <!-- ASISTENTE DE IA LOCAL (NAVEGADOR)           -->
     <!-- ========================================== -->
     <script>
+        // --- VARIABLE DE ESTADO GLOBAL PARA SABER SI ESTÁBAMOS ESCUCHANDO ---
+        let isListeningGlobal = false;
+
         // --- 1. CONFIGURACIÓN DE VOZ ---
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
             
             recognition.lang = 'es-ES';
-            recognition.continuous = true;  // ¡AHORA ESCUCHA DE FORMA CONTINUA!
+            recognition.continuous = true;
             recognition.interimResults = true;
             recognition.maxAlternatives = 1;
 
@@ -192,6 +195,7 @@
                 voiceBtn.style.background = 'var(--accent-color)';
                 voiceBtn.querySelector('i').className = 'fa-solid fa-microphone';
                 isListening = false;
+                isListeningGlobal = false;
                 if (recognition) recognition.stop();
             }
 
@@ -200,6 +204,7 @@
                 voiceBtn.style.background = '#e74c3c';
                 voiceBtn.querySelector('i').className = 'fa-solid fa-microphone-slash';
                 isListening = true;
+                isListeningGlobal = true;
                 voiceHint.innerText = '🎙️ Escucha continua activada...';
                 voiceText.innerText = 'Di "Detener" para salir.';
             }
@@ -217,7 +222,20 @@
                 }
             });
 
-            // --- 2. PROCESAR EL TEXTO (EJECUCIÓN CONTINUA) ---
+            // --- 2. REACTIVACIÓN AL CARGAR LA PÁGINA ---
+            // Si el usuario estaba escuchando antes de recargar, reactivamos automáticamente
+            window.addEventListener('load', function() {
+                if (localStorage.getItem('voice_active') === 'true') {
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                            showVoiceBox();
+                        } catch (e) {}
+                    }, 500); // Pequeño retraso para que la página cargue primero
+                }
+            });
+
+            // --- 3. PROCESAR EL TEXTO ---
             recognition.onresult = async (event) => {
                 let finalTranscript = '';
                 let interimTranscript = '';
@@ -230,15 +248,16 @@
                     }
                 }
 
-                // Mostrar siempre lo que se escucha
                 voiceText.innerText = finalTranscript || interimTranscript;
 
-                // Ejecutar solo cuando la frase esté completa
                 if (finalTranscript) {
                     const resultado = await analizarComando(finalTranscript);
                     
                     voiceHint.innerText = '✅ Acción ejecutada';
                     voiceText.innerText = resultado.mensaje;
+
+                    // Guardamos en localStorage que la voz está activa para cuando recargue la página
+                    localStorage.setItem('voice_active', 'true');
 
                     // Ejecutar la acción
                     if (resultado.accion === 'navegar') {
@@ -262,32 +281,38 @@
                     } else if (resultado.accion === 'refrescar') {
                         window.location.reload();
                     } else if (resultado.accion === 'buscar') {
-                        // EJECUTAR BÚSQUEDA EN LA TABLA
                         const inputBusqueda = document.getElementById('searchInput');
                         if (inputBusqueda) {
                             inputBusqueda.value = resultado.textoBusqueda;
-                            inputBusqueda.dispatchEvent(new Event('keyup'));
+                            // Disparamos el evento de entrada y el de teclado para forzar la búsqueda
+                            inputBusqueda.dispatchEvent(new Event('input', { bubbles: true }));
+                            setTimeout(() => {
+                                inputBusqueda.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
+                            }, 50);
                             inputBusqueda.focus();
+                        } else {
+                            voiceText.innerText = "❌ No hay buscador en esta página.";
                         }
                     } else if (resultado.accion === 'detener') {
+                        localStorage.removeItem('voice_active');
                         hideVoiceBox();
                     }
                 }
             };
 
-            recognition.onspeechend = () => {};
             recognition.onerror = (event) => {
                 console.log("Error de voz:", event.error);
                 if (event.error === 'not-allowed') {
                     voiceText.innerText = "🚫 Permiso denegado. Permite el micrófono.";
+                    localStorage.removeItem('voice_active');
                 } else if (event.error === 'no-speech') {
-                    // Silencio, simplemente ignoramos y seguimos escuchando
+                    // Silencio, ignoramos
                 } else {
                     voiceText.innerText = "🔇 Error. Di 'Detener' si falla.";
                 }
             };
             recognition.onend = () => {
-                // Si termina inesperadamente pero debería seguir escuchando, lo reiniciamos
+                // Si terminó inesperadamente pero debería seguir escuchando, lo reiniciamos
                 if (isListening) {
                     try {
                         recognition.start();
@@ -300,16 +325,14 @@
             console.log("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.");
         }
 
-        // --- 3. ANALIZADOR DE COMANDOS (CON BÚSQUEDA) ---
+        // --- 4. ANALIZADOR DE COMANDOS ---
         async function analizarComando(comando) {
             const cmd = comando.toLowerCase().trim();
 
-            // 0. DETENER EL MICRÓFONO
             if (cmd.includes('detener') || cmd.includes('parar') || cmd.includes('apagar') || cmd.includes('callate')) {
                 return { accion: 'detener', mensaje: '🔇 Micrófono apagado.' };
             }
 
-            // 1. Navegación
             if (cmd.includes('ir a inicio') || cmd.includes('inicio')) return { accion: 'navegar', destino: '/', mensaje: 'Yendo al Inicio' };
             if (cmd.includes('ir a clientes') || cmd.includes('clientes')) return { accion: 'navegar', destino: '/clientes', mensaje: 'Abriendo Clientes' };
             if (cmd.includes('ir a productos') || cmd.includes('productos')) return { accion: 'navegar', destino: '/productos', mensaje: 'Abriendo Productos' };
@@ -321,7 +344,6 @@
             if (cmd.includes('salir') || cmd.includes('cerrar sesión') || cmd.includes('logout')) return { accion: 'cerrar_sesion', mensaje: 'Cerrando sesión...' };
             if (cmd.includes('recargar') || cmd.includes('refrescar')) return { accion: 'refrescar', mensaje: 'Recargando página...' };
 
-            // 2. Creación (Foco)
             if (cmd.includes('crear producto') || cmd.includes('nuevo producto')) 
                 return { accion: 'enfocar', selector: 'input[name="nombre_producto"]', mensaje: '¡Escribe el nuevo producto!' };
             if (cmd.includes('crear cliente') || cmd.includes('nuevo cliente')) 
@@ -329,7 +351,6 @@
             if (cmd.includes('crear empleado') || cmd.includes('nuevo empleado')) 
                 return { accion: 'enfocar', selector: 'input[name="nombre"]', mensaje: '¡Escribe el nuevo empleado!' };
 
-            // 3. Selección en Ventas
             if (cmd.includes('cliente')) {
                 const numero = cmd.match(/\d+/);
                 if (numero) {
@@ -343,16 +364,13 @@
                 }
             }
 
-            // 4. BÚSQUEDA EN TABLAS (NUEVO)
             if (cmd.includes('buscar') || cmd.includes('encuentra') || cmd.includes('localiza')) {
-                // Extraer el texto a buscar (todo lo que viene después de "buscar")
                 let textoBusqueda = cmd.replace('buscar', '').replace('encuentra', '').replace('localiza', '').trim();
                 if (textoBusqueda) {
                     return { accion: 'buscar', textoBusqueda: textoBusqueda, mensaje: `🔍 Buscando "${textoBusqueda}"...` };
                 }
             }
 
-            // Respuesta por defecto
             return { accion: 'responder', mensaje: '🤖 No entendí. Di "Buscar [nombre]", "Ir a [página]" o "Crear [elemento]".' };
         }
     </script>
