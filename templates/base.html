@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Marcani - Gestión Empresarial</title>
     
-    <!-- Script ANTI-FLASH BLANCO: Se ejecuta antes de que la página se pinte -->
+    <!-- Script ANTI-FLASH BLANCO -->
     <script>
         (function() {
             const theme = localStorage.getItem('theme');
@@ -105,10 +105,27 @@
             </div>
         </main>
     </div>
-    
+
+    <!-- ========================================== -->
+    <!-- CONTROLADOR DE VOZ (BOTÓN FLOTANTE)        -->
+    <!-- ========================================== -->
+    <div id="voiceController" style="position: fixed; bottom: 30px; right: 30px; z-index: 10000; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+        
+        <!-- Cuadro de transcripción -->
+        <div id="voiceTranscriptBox" style="display: none; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--accent-color); border-radius: 12px; padding: 12px 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 300px; font-size: 0.95rem; text-align: center; transition: all 0.3s ease;">
+            <i class="fa-solid fa-microphone" style="color: var(--accent-color); margin-right: 8px;"></i>
+            <span id="voiceText">Escuchando...</span>
+            <div id="voiceHint" style="font-size: 0.7rem; color: var(--text-light); margin-top: 5px;">Di un comando...</div>
+        </div>
+
+        <!-- Botón del micrófono -->
+        <button id="voiceBtn" style="background: var(--accent-color); color: white; border: none; width: 60px; height: 60px; border-radius: 50%; font-size: 1.8rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.2s, background 0.2s; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid fa-microphone"></i>
+        </button>
+    </div>
+
     <!-- SCRIPTS: Sidebar y Dark Mode -->
     <script>
-        // --- Lógica del Menú Hamburguesa ---
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('open');
@@ -126,12 +143,10 @@
             }
         });
 
-        // --- Lógica del Modo Oscuro ---
         const themeToggle = document.getElementById('themeToggle');
         const icon = themeToggle.querySelector('i');
         const currentTheme = localStorage.getItem('theme');
 
-        // Aplicar tema guardado al cargar (Refuerzo visual)
         if (currentTheme === 'dark') {
             icon.classList.remove('fa-moon');
             icon.classList.add('fa-sun');
@@ -140,7 +155,6 @@
         themeToggle.addEventListener('click', () => {
             const html = document.documentElement;
             const current = html.getAttribute('data-theme');
-            
             if (current === 'dark') {
                 html.removeAttribute('data-theme');
                 localStorage.setItem('theme', 'light');
@@ -153,6 +167,247 @@
                 icon.classList.add('fa-sun');
             }
         });
+    </script>
+
+    <!-- ========================================== -->
+    <!-- SCRIPTS DE CONTROL POR VOZ (IA DE CONTEXTO)-->
+    <!-- ========================================== -->
+    <script>
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            
+            recognition.lang = 'es-ES';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
+
+            const voiceBtn = document.getElementById('voiceBtn');
+            const voiceBox = document.getElementById('voiceTranscriptBox');
+            const voiceText = document.getElementById('voiceText');
+            const voiceHint = document.getElementById('voiceHint');
+            let isListening = false;
+            let timeoutId = null;
+
+            // --- 1. DETECCIÓN DE CONTEXTO (IA) ---
+            function detectarContexto() {
+                const path = window.location.pathname;
+                if (path === '/') return 'inicio';
+                if (path.includes('clientes')) return 'clientes';
+                if (path.includes('productos')) return 'productos';
+                if (path.includes('empleados')) return 'empleados';
+                if (path.includes('proveedores')) return 'proveedores';
+                if (path.includes('inventario')) return 'inventario';
+                if (path.includes('catalogo')) return 'catalogo';
+                if (path.includes('ventas')) return 'ventas';
+                return 'general';
+            }
+
+            // --- 2. FUNCIONES DE ACCIÓN ---
+            function ejecutarComando(comando, contexto) {
+                const cmd = comando.toLowerCase().trim();
+                let accionRealizada = false;
+
+                // Navegación global
+                if (cmd.includes('ir a inicio') || cmd.includes('inicio')) {
+                    window.location.href = "{{ url_for('home') }}"; accionRealizada = true;
+                } else if (cmd.includes('ir a clientes')) { 
+                    window.location.href = "{{ url_for('clientes_view') }}"; accionRealizada = true;
+                } else if (cmd.includes('ir a productos')) { 
+                    window.location.href = "{{ url_for('productos_view') }}"; accionRealizada = true;
+                } else if (cmd.includes('ir a empleados')) { 
+                    window.location.href = "{{ url_for('empleados_view') }}"; accionRealizada = true;
+                } else if (cmd.includes('ir a proveedores')) { 
+                    window.location.href = "{{ url_for('proveedores_view') }}"; accionRealizada = true;
+                } else if (cmd.includes('ir a inventario') || cmd.includes('ir al inventario')) { 
+                    window.location.href = "{{ url_for('inventario_view') }}"; accionRealizada = true;
+                } else if (cmd.includes('ir a catálogo') || cmd.includes('ir al catálogo')) { 
+                    window.location.href = "{{ url_for('catalogo_view') }}"; accionRealizada = true;
+                } else if (cmd.includes('ir a ventas')) { 
+                    window.location.href = "{{ url_for('ventas_view') }}"; accionRealizada = true;
+                } else if (cmd.includes('salir') || cmd.includes('cerrar sesión')) { 
+                    window.location.href = "{{ url_for('logout') }}"; accionRealizada = true;
+                }
+
+                // --- COMANDOS CONTEXTUALES (INTELIGENCIA) ---
+                if (contexto === 'inicio' && !accionRealizada) {
+                    if (cmd.includes('registrar venta')) {
+                        window.location.href = "{{ url_for('ventas_view') }}";
+                        accionRealizada = true;
+                    }
+                }
+
+                if (contexto === 'ventas' && !accionRealizada) {
+                    const selects = document.querySelectorAll('select');
+                    if (selects.length > 0) {
+                        const clienteSelect = selects[0];
+                        const productoSelect = selects[1];
+                        
+                        for (let opt of clienteSelect.options) {
+                            if (opt.text.toLowerCase().includes(cmd)) {
+                                clienteSelect.value = opt.value;
+                                voiceText.innerText = `Cliente seleccionado: ${opt.text}`;
+                                accionRealizada = true;
+                                break;
+                            }
+                        }
+                        if (!accionRealizada) {
+                            for (let opt of productoSelect.options) {
+                                if (opt.text.toLowerCase().includes(cmd) || cmd.includes('producto')) {
+                                    productoSelect.value = opt.value;
+                                    voiceText.innerText = `Producto seleccionado: ${opt.text}`;
+                                    accionRealizada = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (contexto === 'productos' && !accionRealizada) {
+                    if (cmd.includes('crear producto') || cmd.includes('nuevo producto')) {
+                        const input = document.querySelector('input[name="nombre_producto"]');
+                        if (input) { input.focus(); accionRealizada = true; }
+                    }
+                }
+
+                if (contexto === 'clientes' && !accionRealizada) {
+                    if (cmd.includes('crear cliente') || cmd.includes('nuevo cliente')) {
+                        const input = document.querySelector('input[name="nombre"]');
+                        if (input) { input.focus(); accionRealizada = true; }
+                    }
+                }
+
+                if (contexto === 'empleados' && !accionRealizada) {
+                    if (cmd.includes('crear empleado') || cmd.includes('nuevo empleado')) {
+                        const input = document.querySelector('input[name="nombre"]');
+                        if (input) { input.focus(); accionRealizada = true; }
+                    }
+                }
+
+                if (cmd.includes('ayuda') || cmd.includes('qué puedo hacer')) {
+                    const msg = `Estás en ${contexto}. Puedes decir: "Ir a [página]", "Crear [elemento]" o buscar por nombre.`;
+                    voiceText.innerText = msg;
+                    voiceHint.innerText = "IA activada";
+                    accionRealizada = true;
+                }
+
+                if (!accionRealizada) {
+                    voiceText.innerText = `No entendí "${cmd}" en ${contexto}`;
+                }
+            }
+
+            function hideVoiceBox() {
+                voiceBox.style.display = 'none';
+                voiceBtn.style.background = 'var(--accent-color)';
+                voiceBtn.querySelector('i').className = 'fa-solid fa-microphone';
+                isListening = false;
+            }
+
+            function showVoiceBox() {
+                voiceBox.style.display = 'block';
+                voiceBtn.style.background = '#e74c3c';
+                voiceBtn.querySelector('i').className = 'fa-solid fa-microphone-slash';
+                isListening = true;
+                const contexto = detectarContexto();
+                voiceHint.innerText = `Contexto: ${contexto}`;
+            }
+
+            // --- 3. VERIFICACIÓN Y PERMISOS DEL MICRÓFONO ---
+            async function verificarPermisoMicrofono() {
+                try {
+                    // Intentar obtener el stream de audio sin grabarlo
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Si llegamos aquí, el micrófono está permitido y funcionando
+                    stream.getTracks().forEach(track => track.stop()); // Cerramos el stream de prueba
+                    return true;
+                } catch (err) {
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        voiceText.innerText = "⚠️ Micrófono bloqueado. Haz clic en el candado 🔒 de la barra de direcciones y permite el micrófono.";
+                        voiceHint.innerText = "Permiso denegado";
+                    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                        voiceText.innerText = "❌ No se encontró ningún micrófono en tu dispositivo.";
+                        voiceHint.innerText = "Sin hardware";
+                    } else {
+                        voiceText.innerText = `❌ Error: ${err.message}`;
+                        voiceHint.innerText = "Error técnico";
+                    }
+                    return false;
+                }
+            }
+
+            voiceBtn.addEventListener('click', async () => {
+                if (isListening) {
+                    recognition.stop();
+                    hideVoiceBox();
+                } else {
+                    const permiso = await verificarPermisoMicrofono();
+                    if (!permiso) {
+                        // Si no hay permiso, mostramos el cuadro con el error
+                        showVoiceBox();
+                        return;
+                    }
+                    try {
+                        recognition.start();
+                        showVoiceBox();
+                        voiceText.innerText = "Escuchando...";
+                    } catch (e) {
+                        console.log("Error al iniciar el micrófono:", e);
+                        voiceText.innerText = "Error al iniciar el reconocimiento. Recarga la página.";
+                        voiceHint.innerText = "Error interno";
+                    }
+                }
+            });
+
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                voiceText.innerText = finalTranscript || interimTranscript;
+
+                if (finalTranscript) {
+                    const contexto = detectarContexto();
+                    ejecutarComando(finalTranscript, contexto);
+                    
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => {
+                        recognition.stop();
+                        hideVoiceBox();
+                    }, 4000);
+                }
+            };
+
+            recognition.onspeechend = () => {};
+
+            recognition.onerror = (event) => {
+                console.log("Error de voz:", event.error);
+                if (event.error === 'not-allowed') {
+                    voiceText.innerText = "Permiso denegado. Permite el micrófono.";
+                } else {
+                    voiceText.innerText = "Error al escuchar. Intenta de nuevo.";
+                }
+                setTimeout(hideVoiceBox, 2000);
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    setTimeout(hideVoiceBox, 1000);
+                }
+            };
+
+        } else {
+            document.getElementById('voiceController').style.display = 'none';
+            console.log("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.");
+        }
     </script>
 
     <!-- Registro del Service Worker -->
