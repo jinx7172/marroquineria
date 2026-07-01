@@ -340,7 +340,7 @@
             console.log("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.");
         }
 
-        // --- ANALIZADOR DE COMANDOS ---
+        // --- ANALIZADOR DE COMANDOS (CON REGEX PARA UNA EXTRACCIÓN PERFECTA) ---
         async function analizarComando(comando) {
             const cmd = comando.toLowerCase().trim();
 
@@ -379,10 +379,17 @@
                 }
             }
 
+            // BÚSQUEDA PERFECTA CON REGEX
             if (cmd.includes('buscar') || cmd.includes('encuentra') || cmd.includes('localiza')) {
-                let textoBusqueda = cmd.replace('buscar', '').replace('encuentra', '').replace('localiza', '').trim();
-                if (textoBusqueda) {
-                    return { accion: 'buscar', textoBusqueda: textoBusqueda, mensaje: `🔍 Buscando "${textoBusqueda}"...` };
+                // Regex: Toma todo lo que está después de la palabra buscar/encuentra/localiza
+                const match = cmd.match(/(?:buscar|encuentra|localiza)\s+(.+)/);
+                if (match && match[1]) {
+                    const textoBusqueda = match[1].trim(); // Extrae solo el texto limpio
+                    return { 
+                        accion: 'buscar', 
+                        textoBusqueda: textoBusqueda, 
+                        mensaje: `🔍 Buscando "${textoBusqueda}"...` 
+                    };
                 }
             }
 
