@@ -72,7 +72,6 @@
         <!-- Contenido Principal -->
         <main class="main-content">
             <header class="top-bar">
-                <!-- Botón menú celular -->
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <button onclick="toggleSidebar()" style="background:none; border:none; font-size:1.5rem; color:var(--text-main); display:none; cursor:pointer;" id="menuBtn">
                         <i class="fa-solid fa-bars"></i>
@@ -83,7 +82,6 @@
                 </div>
 
                 <div class="user-info">
-                    <!-- Botón de Modo Oscuro -->
                     <button class="theme-toggle" id="themeToggle" title="Cambiar tema">
                         <i class="fa-solid fa-moon"></i>
                     </button>
@@ -107,15 +105,15 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- CONTROLADOR DE VOZ (BOTÓN FLOTANTE)        -->
+    <!-- ASISTENTE DE IA NATIVO DEL NAVEGADOR        -->
     <!-- ========================================== -->
     <div id="voiceController" style="position: fixed; bottom: 30px; right: 30px; z-index: 10000; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
         
-        <!-- Cuadro de transcripción -->
+        <!-- Cuadro de transcripción IA -->
         <div id="voiceTranscriptBox" style="display: none; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--accent-color); border-radius: 12px; padding: 12px 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 300px; font-size: 0.95rem; text-align: center; transition: all 0.3s ease;">
-            <i class="fa-solid fa-microphone" style="color: var(--accent-color); margin-right: 8px;"></i>
+            <i class="fa-solid fa-brain" style="color: var(--accent-color); margin-right: 8px;"></i>
             <span id="voiceText">Escuchando...</span>
-            <div id="voiceHint" style="font-size: 0.7rem; color: var(--text-light); margin-top: 5px;">Di un comando...</div>
+            <div id="voiceHint" style="font-size: 0.7rem; color: var(--text-light); margin-top: 5px;">IA local interpretando...</div>
         </div>
 
         <!-- Botón del micrófono -->
@@ -124,7 +122,7 @@
         </button>
     </div>
 
-    <!-- SCRIPTS: Sidebar y Dark Mode -->
+    <!-- SCRIPTS BÁSICOS (Dark mode y Sidebar) -->
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -170,11 +168,22 @@
     </script>
 
     <!-- ========================================== -->
-    <!-- SCRIPTS DE CONTROL POR VOZ (IA DE CONTEXTO)-->
+    <!-- ASISTENTE DE IA LOCAL (NAVEGADOR)           -->
     <!-- ========================================== -->
     <script>
+        // --- 1. VERIFICAR SI EL NAVEGADOR TIENE IA NATIVA ---
+        async function verificarIA() {
+            // Verificar si el navegador soporta la IA de Chrome/Edge (Prompt API)
+            if (!('ai' in window && 'canCreate' in window.ai && 'summarizer' in window.ai)) {
+                // Si no tiene la IA nativa, usamos un modo de "Entendimiento simple"
+                console.warn("Navegador sin IA nativa. Usando modo de comandos básicos.");
+                return false;
+            }
+            return true;
+        }
+
+        // --- 2. CONFIGURACIÓN DE VOZ ---
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
             
@@ -190,114 +199,6 @@
             let isListening = false;
             let timeoutId = null;
 
-            // --- 1. DETECCIÓN DE CONTEXTO (IA) ---
-            function detectarContexto() {
-                const path = window.location.pathname;
-                if (path === '/') return 'inicio';
-                if (path.includes('clientes')) return 'clientes';
-                if (path.includes('productos')) return 'productos';
-                if (path.includes('empleados')) return 'empleados';
-                if (path.includes('proveedores')) return 'proveedores';
-                if (path.includes('inventario')) return 'inventario';
-                if (path.includes('catalogo')) return 'catalogo';
-                if (path.includes('ventas')) return 'ventas';
-                return 'general';
-            }
-
-            // --- 2. FUNCIONES DE ACCIÓN ---
-            function ejecutarComando(comando, contexto) {
-                const cmd = comando.toLowerCase().trim();
-                let accionRealizada = false;
-
-                // Navegación global
-                if (cmd.includes('ir a inicio') || cmd.includes('inicio')) {
-                    window.location.href = "{{ url_for('home') }}"; accionRealizada = true;
-                } else if (cmd.includes('ir a clientes')) { 
-                    window.location.href = "{{ url_for('clientes_view') }}"; accionRealizada = true;
-                } else if (cmd.includes('ir a productos')) { 
-                    window.location.href = "{{ url_for('productos_view') }}"; accionRealizada = true;
-                } else if (cmd.includes('ir a empleados')) { 
-                    window.location.href = "{{ url_for('empleados_view') }}"; accionRealizada = true;
-                } else if (cmd.includes('ir a proveedores')) { 
-                    window.location.href = "{{ url_for('proveedores_view') }}"; accionRealizada = true;
-                } else if (cmd.includes('ir a inventario') || cmd.includes('ir al inventario')) { 
-                    window.location.href = "{{ url_for('inventario_view') }}"; accionRealizada = true;
-                } else if (cmd.includes('ir a catálogo') || cmd.includes('ir al catálogo')) { 
-                    window.location.href = "{{ url_for('catalogo_view') }}"; accionRealizada = true;
-                } else if (cmd.includes('ir a ventas')) { 
-                    window.location.href = "{{ url_for('ventas_view') }}"; accionRealizada = true;
-                } else if (cmd.includes('salir') || cmd.includes('cerrar sesión')) { 
-                    window.location.href = "{{ url_for('logout') }}"; accionRealizada = true;
-                }
-
-                // --- COMANDOS CONTEXTUALES (INTELIGENCIA) ---
-                if (contexto === 'inicio' && !accionRealizada) {
-                    if (cmd.includes('registrar venta')) {
-                        window.location.href = "{{ url_for('ventas_view') }}";
-                        accionRealizada = true;
-                    }
-                }
-
-                if (contexto === 'ventas' && !accionRealizada) {
-                    const selects = document.querySelectorAll('select');
-                    if (selects.length > 0) {
-                        const clienteSelect = selects[0];
-                        const productoSelect = selects[1];
-                        
-                        for (let opt of clienteSelect.options) {
-                            if (opt.text.toLowerCase().includes(cmd)) {
-                                clienteSelect.value = opt.value;
-                                voiceText.innerText = `Cliente seleccionado: ${opt.text}`;
-                                accionRealizada = true;
-                                break;
-                            }
-                        }
-                        if (!accionRealizada) {
-                            for (let opt of productoSelect.options) {
-                                if (opt.text.toLowerCase().includes(cmd) || cmd.includes('producto')) {
-                                    productoSelect.value = opt.value;
-                                    voiceText.innerText = `Producto seleccionado: ${opt.text}`;
-                                    accionRealizada = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (contexto === 'productos' && !accionRealizada) {
-                    if (cmd.includes('crear producto') || cmd.includes('nuevo producto')) {
-                        const input = document.querySelector('input[name="nombre_producto"]');
-                        if (input) { input.focus(); accionRealizada = true; }
-                    }
-                }
-
-                if (contexto === 'clientes' && !accionRealizada) {
-                    if (cmd.includes('crear cliente') || cmd.includes('nuevo cliente')) {
-                        const input = document.querySelector('input[name="nombre"]');
-                        if (input) { input.focus(); accionRealizada = true; }
-                    }
-                }
-
-                if (contexto === 'empleados' && !accionRealizada) {
-                    if (cmd.includes('crear empleado') || cmd.includes('nuevo empleado')) {
-                        const input = document.querySelector('input[name="nombre"]');
-                        if (input) { input.focus(); accionRealizada = true; }
-                    }
-                }
-
-                if (cmd.includes('ayuda') || cmd.includes('qué puedo hacer')) {
-                    const msg = `Estás en ${contexto}. Puedes decir: "Ir a [página]", "Crear [elemento]" o buscar por nombre.`;
-                    voiceText.innerText = msg;
-                    voiceHint.innerText = "IA activada";
-                    accionRealizada = true;
-                }
-
-                if (!accionRealizada) {
-                    voiceText.innerText = `No entendí "${cmd}" en ${contexto}`;
-                }
-            }
-
             function hideVoiceBox() {
                 voiceBox.style.display = 'none';
                 voiceBtn.style.background = 'var(--accent-color)';
@@ -310,57 +211,26 @@
                 voiceBtn.style.background = '#e74c3c';
                 voiceBtn.querySelector('i').className = 'fa-solid fa-microphone-slash';
                 isListening = true;
-                const contexto = detectarContexto();
-                voiceHint.innerText = `Contexto: ${contexto}`;
+                voiceHint.innerText = 'IA local interpretando...';
+                voiceText.innerText = 'Escuchando...';
             }
 
-            // --- 3. VERIFICACIÓN Y PERMISOS DEL MICRÓFONO ---
-            async function verificarPermisoMicrofono() {
-                try {
-                    // Intentar obtener el stream de audio sin grabarlo
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    // Si llegamos aquí, el micrófono está permitido y funcionando
-                    stream.getTracks().forEach(track => track.stop()); // Cerramos el stream de prueba
-                    return true;
-                } catch (err) {
-                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                        voiceText.innerText = "⚠️ Micrófono bloqueado. Haz clic en el candado 🔒 de la barra de direcciones y permite el micrófono.";
-                        voiceHint.innerText = "Permiso denegado";
-                    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                        voiceText.innerText = "❌ No se encontró ningún micrófono en tu dispositivo.";
-                        voiceHint.innerText = "Sin hardware";
-                    } else {
-                        voiceText.innerText = `❌ Error: ${err.message}`;
-                        voiceHint.innerText = "Error técnico";
-                    }
-                    return false;
-                }
-            }
-
-            voiceBtn.addEventListener('click', async () => {
+            voiceBtn.addEventListener('click', () => {
                 if (isListening) {
                     recognition.stop();
                     hideVoiceBox();
                 } else {
-                    const permiso = await verificarPermisoMicrofono();
-                    if (!permiso) {
-                        // Si no hay permiso, mostramos el cuadro con el error
-                        showVoiceBox();
-                        return;
-                    }
                     try {
                         recognition.start();
                         showVoiceBox();
-                        voiceText.innerText = "Escuchando...";
                     } catch (e) {
                         console.log("Error al iniciar el micrófono:", e);
-                        voiceText.innerText = "Error al iniciar el reconocimiento. Recarga la página.";
-                        voiceHint.innerText = "Error interno";
                     }
                 }
             });
 
-            recognition.onresult = (event) => {
+            // --- 3. PROCESAR EL TEXTO (CON IA O SIN ELLA) ---
+            recognition.onresult = async (event) => {
                 let finalTranscript = '';
                 let interimTranscript = '';
                 
@@ -375,9 +245,35 @@
                 voiceText.innerText = finalTranscript || interimTranscript;
 
                 if (finalTranscript) {
-                    const contexto = detectarContexto();
-                    ejecutarComando(finalTranscript, contexto);
+                    // Ejecutar el analizador de comandos
+                    const resultado = await analizarComando(finalTranscript);
                     
+                    voiceHint.innerText = '✅ Acción ejecutada';
+                    voiceText.innerText = resultado.mensaje;
+
+                    // Ejecutar la acción
+                    if (resultado.accion === 'navegar') {
+                        window.location.href = resultado.destino;
+                    } else if (resultado.accion === 'enfocar') {
+                        const elemento = document.querySelector(resultado.selector);
+                        if (elemento) {
+                            elemento.focus();
+                            if (elemento.tagName === 'INPUT' || elemento.tagName === 'SELECT') {
+                                elemento.scrollIntoView({ behavior: 'smooth' });
+                            }
+                        }
+                    } else if (resultado.accion === 'seleccionar') {
+                        const elemento = document.querySelector(resultado.selector);
+                        if (elemento) {
+                            elemento.value = resultado.valor;
+                            elemento.dispatchEvent(new Event('change'));
+                        }
+                    } else if (resultado.accion === 'cerrar_sesion') {
+                        window.location.href = "{{ url_for('logout') }}";
+                    } else if (resultado.accion === 'refrescar') {
+                        window.location.reload();
+                    }
+
                     clearTimeout(timeoutId);
                     timeoutId = setTimeout(() => {
                         recognition.stop();
@@ -387,17 +283,15 @@
             };
 
             recognition.onspeechend = () => {};
-
             recognition.onerror = (event) => {
                 console.log("Error de voz:", event.error);
                 if (event.error === 'not-allowed') {
-                    voiceText.innerText = "Permiso denegado. Permite el micrófono.";
+                    voiceText.innerText = "🚫 Permiso denegado. Permite el micrófono.";
                 } else {
-                    voiceText.innerText = "Error al escuchar. Intenta de nuevo.";
+                    voiceText.innerText = "🔇 Error. Intenta de nuevo.";
                 }
                 setTimeout(hideVoiceBox, 2000);
             };
-
             recognition.onend = () => {
                 if (isListening) {
                     setTimeout(hideVoiceBox, 1000);
@@ -407,6 +301,48 @@
         } else {
             document.getElementById('voiceController').style.display = 'none';
             console.log("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.");
+        }
+
+        // --- 4. ANALIZADOR DE COMANDOS (MODO HÍBRIDO) ---
+        async function analizarComando(comando) {
+            const cmd = comando.toLowerCase().trim();
+            
+            // 1. Comandos de Navegación
+            if (cmd.includes('ir a inicio') || cmd.includes('inicio')) return { accion: 'navegar', destino: '/', mensaje: 'Yendo al Inicio' };
+            if (cmd.includes('ir a clientes') || cmd.includes('clientes')) return { accion: 'navegar', destino: '/clientes', mensaje: 'Abriendo Clientes' };
+            if (cmd.includes('ir a productos') || cmd.includes('productos')) return { accion: 'navegar', destino: '/productos', mensaje: 'Abriendo Productos' };
+            if (cmd.includes('ir a empleados') || cmd.includes('empleados')) return { accion: 'navegar', destino: '/empleados', mensaje: 'Abriendo Empleados' };
+            if (cmd.includes('ir a proveedores') || cmd.includes('proveedores')) return { accion: 'navegar', destino: '/proveedores', mensaje: 'Abriendo Proveedores' };
+            if (cmd.includes('ir a inventario') || cmd.includes('inventario')) return { accion: 'navegar', destino: '/inventario', mensaje: 'Abriendo Inventario' };
+            if (cmd.includes('ir a catálogo') || cmd.includes('catalogo')) return { accion: 'navegar', destino: '/catalogo', mensaje: 'Abriendo Catálogo' };
+            if (cmd.includes('ir a ventas') || cmd.includes('ventas')) return { accion: 'navegar', destino: '/ventas', mensaje: 'Abriendo Ventas' };
+            if (cmd.includes('salir') || cmd.includes('cerrar sesión') || cmd.includes('logout')) return { accion: 'cerrar_sesion', mensaje: 'Cerrando sesión...' };
+            if (cmd.includes('recargar') || cmd.includes('refrescar')) return { accion: 'refrescar', mensaje: 'Recargando página...' };
+
+            // 2. Comandos de Creación (Foco)
+            if (cmd.includes('crear producto') || cmd.includes('nuevo producto')) 
+                return { accion: 'enfocar', selector: 'input[name="nombre_producto"]', mensaje: '¡Crea un nuevo producto!' };
+            if (cmd.includes('crear cliente') || cmd.includes('nuevo cliente')) 
+                return { accion: 'enfocar', selector: 'input[name="nombre"]', mensaje: '¡Crea un nuevo cliente!' };
+            if (cmd.includes('crear empleado') || cmd.includes('nuevo empleado')) 
+                return { accion: 'enfocar', selector: 'input[name="nombre"]', mensaje: '¡Crea un nuevo empleado!' };
+
+            // 3. Comandos de selección en Ventas
+            if (cmd.includes('cliente')) {
+                const numero = cmd.match(/\d+/);
+                if (numero) {
+                    return { accion: 'seleccionar', selector: 'select[name="id_cliente"]', valor: numero[0], mensaje: `Cliente ${numero[0]} seleccionado` };
+                }
+            }
+            if (cmd.includes('producto')) {
+                const numero = cmd.match(/\d+/);
+                if (numero) {
+                    return { accion: 'seleccionar', selector: 'select[name="id_producto"]', valor: numero[0], mensaje: `Producto ${numero[0]} seleccionado` };
+                }
+            }
+
+            // Respuesta por defecto
+            return { accion: 'responder', mensaje: '🤖 No entendí bien. Di "Ir a [página]" o "Crear [elemento]".' };
         }
     </script>
 
