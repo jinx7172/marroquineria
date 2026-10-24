@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Marcani - Gestión Empresarial</title>
-    
-    <!-- Script ANTI-FLASH BLANCO -->
+
     <script>
         (function() {
             const theme = localStorage.getItem('theme');
@@ -17,13 +16,11 @@
         })();
     </script>
 
-    <!-- Fuente Moderna -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#1a252f">
@@ -40,7 +37,7 @@
                 <h2>Marcani</h2>
                 <span class="subtitle">Gestión</span>
             </div>
-            
+
             <nav class="sidebar-nav">
                 <a href="{{ url_for('home') }}" class="nav-item {% if request.path == '/' %}active{% endif %}">
                     <i class="fa-solid fa-house"></i> <span>Inicio</span>
@@ -66,6 +63,9 @@
                 <a href="{{ url_for('ventas_view') }}" class="nav-item {% if 'ventas' in request.path %}active{% endif %}">
                     <i class="fa-solid fa-coins"></i> <span>Ventas</span>
                 </a>
+                <a href="{{ url_for('configuracion_view') }}" class="nav-item {% if 'configuracion' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-gear"></i> <span>Configuración</span>
+                </a>
             </nav>
         </aside>
 
@@ -87,11 +87,15 @@
                     </button>
 
                     <span style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9rem; color: var(--text-main);">
-                        <i class="fa-regular fa-user-circle" style="font-size: 1.2rem;"></i> 
+                        <i class="fa-regular fa-user-circle" style="font-size: 1.2rem;"></i>
                         <span style="max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             {{ session.get('user_name', 'Usuario') }}
                         </span>
                     </span>
+                    <a href="{{ url_for('configuracion_view') }}" title="Configuración de cuenta"
+                       style="background: var(--accent-color); color: white; padding: 5px 12px; border-radius: 20px; text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 5px;">
+                        <i class="fa-solid fa-gear"></i> Cuenta
+                    </a>
                     <a href="{{ url_for('logout') }}" style="background: var(--danger); color: white; padding: 5px 15px; border-radius: 20px; text-decoration: none; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 5px;">
                         <i class="fa-solid fa-right-from-bracket"></i> Salir
                     </a>
@@ -108,21 +112,19 @@
     <!-- ASISTENTE DE IA NATIVO DEL NAVEGADOR        -->
     <!-- ========================================== -->
     <div id="voiceController" style="position: fixed; bottom: 30px; right: 30px; z-index: 10000; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
-        
-        <!-- Cuadro de transcripción IA -->
+
         <div id="voiceTranscriptBox" style="display: none; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--accent-color); border-radius: 12px; padding: 12px 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 300px; font-size: 0.95rem; text-align: center; transition: all 0.3s ease;">
             <i class="fa-solid fa-brain" style="color: var(--accent-color); margin-right: 8px;"></i>
             <span id="voiceText">Escuchando...</span>
             <div id="voiceHint" style="font-size: 0.7rem; color: var(--text-light); margin-top: 5px;">IA local interpretando...</div>
         </div>
 
-        <!-- Botón del micrófono -->
         <button id="voiceBtn" style="background: var(--accent-color); color: white; border: none; width: 60px; height: 60px; border-radius: 50%; font-size: 1.8rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.2s, background 0.2s; display: flex; align-items: center; justify-content: center;">
             <i class="fa-solid fa-microphone"></i>
         </button>
     </div>
 
-    <!-- SCRIPTS BÁSICOS (Dark mode y Sidebar) -->
+    <!-- SCRIPTS BÁSICOS -->
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -171,13 +173,12 @@
     <!-- ASISTENTE DE IA LOCAL (NAVEGADOR)           -->
     <!-- ========================================== -->
     <script>
-        // --- VARIABLE DE ESTADO GLOBAL ---
         let isListeningGlobal = false;
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
-            
+
             recognition.lang = 'es-ES';
             recognition.continuous = true;
             recognition.interimResults = true;
@@ -221,7 +222,6 @@
                 }
             });
 
-            // --- REACTIVACIÓN AL CARGAR LA PÁGINA ---
             window.addEventListener('load', function() {
                 if (localStorage.getItem('voice_active') === 'true') {
                     setTimeout(() => {
@@ -233,11 +233,10 @@
                 }
             });
 
-            // --- PROCESAR EL TEXTO ---
             recognition.onresult = async (event) => {
                 let finalTranscript = '';
                 let interimTranscript = '';
-                
+
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript;
@@ -250,13 +249,12 @@
 
                 if (finalTranscript) {
                     const resultado = await analizarComando(finalTranscript);
-                    
+
                     voiceHint.innerText = '✅ Acción ejecutada';
                     voiceText.innerText = resultado.mensaje;
 
                     localStorage.setItem('voice_active', 'true');
 
-                    // Ejecutar la acción
                     if (resultado.accion === 'navegar') {
                         window.location.href = resultado.destino;
                     } else if (resultado.accion === 'enfocar') {
@@ -280,28 +278,23 @@
                     } else if (resultado.accion === 'buscar') {
                         const inputBusqueda = document.getElementById('searchInput');
                         if (inputBusqueda) {
-                            // 1. Escribimos el texto y forzamos la búsqueda
                             inputBusqueda.value = resultado.textoBusqueda;
                             inputBusqueda.dispatchEvent(new Event('input', { bubbles: true }));
                             inputBusqueda.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
-                            
-                            // 2. INTELIGENCIA: Crear un observador que cierra el teclado SOLO cuando la tabla se actualiza
+
                             const tabla = document.querySelector('table tbody');
                             if (tabla) {
                                 const observer = new MutationObserver(() => {
-                                    // Cuando la tabla cambia (los resultados aparecen), cerramos el teclado
                                     inputBusqueda.blur();
-                                    observer.disconnect(); // Dejamos de observar para no ralentizar
+                                    observer.disconnect();
                                 });
                                 observer.observe(tabla, { childList: true, subtree: true });
-                                
-                                // Plan B (Seguro): Si pasan 2 segundos y el observador no se activó, cerramos igual
+
                                 setTimeout(() => {
                                     inputBusqueda.blur();
                                     observer.disconnect();
                                 }, 2000);
                             } else {
-                                // Si no hay tabla, cerramos el teclado directamente
                                 setTimeout(() => inputBusqueda.blur(), 500);
                             }
 
@@ -340,7 +333,6 @@
             console.log("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.");
         }
 
-        // --- ANALIZADOR DE COMANDOS (CON REGEX PARA UNA EXTRACCIÓN PERFECTA) ---
         async function analizarComando(comando) {
             const cmd = comando.toLowerCase().trim();
 
@@ -356,14 +348,15 @@
             if (cmd.includes('ir a inventario') || cmd.includes('inventario')) return { accion: 'navegar', destino: '/inventario', mensaje: 'Abriendo Inventario' };
             if (cmd.includes('ir a catálogo') || cmd.includes('catalogo')) return { accion: 'navegar', destino: '/catalogo', mensaje: 'Abriendo Catálogo' };
             if (cmd.includes('ir a ventas') || cmd.includes('ventas')) return { accion: 'navegar', destino: '/ventas', mensaje: 'Abriendo Ventas' };
+            if (cmd.includes('configuración') || cmd.includes('configuracion') || cmd.includes('cuenta')) return { accion: 'navegar', destino: '/configuracion', mensaje: 'Abriendo Configuración' };
             if (cmd.includes('salir') || cmd.includes('cerrar sesión') || cmd.includes('logout')) return { accion: 'cerrar_sesion', mensaje: 'Cerrando sesión...' };
             if (cmd.includes('recargar') || cmd.includes('refrescar')) return { accion: 'refrescar', mensaje: 'Recargando página...' };
 
-            if (cmd.includes('crear producto') || cmd.includes('nuevo producto')) 
+            if (cmd.includes('crear producto') || cmd.includes('nuevo producto'))
                 return { accion: 'enfocar', selector: 'input[name="nombre_producto"]', mensaje: '¡Escribe el nuevo producto!' };
-            if (cmd.includes('crear cliente') || cmd.includes('nuevo cliente')) 
+            if (cmd.includes('crear cliente') || cmd.includes('nuevo cliente'))
                 return { accion: 'enfocar', selector: 'input[name="nombre"]', mensaje: '¡Escribe el nuevo cliente!' };
-            if (cmd.includes('crear empleado') || cmd.includes('nuevo empleado')) 
+            if (cmd.includes('crear empleado') || cmd.includes('nuevo empleado'))
                 return { accion: 'enfocar', selector: 'input[name="nombre"]', mensaje: '¡Escribe el nuevo empleado!' };
 
             if (cmd.includes('cliente')) {
@@ -379,16 +372,14 @@
                 }
             }
 
-            // BÚSQUEDA PERFECTA CON REGEX
             if (cmd.includes('buscar') || cmd.includes('encuentra') || cmd.includes('localiza')) {
-                // Regex: Toma todo lo que está después de la palabra buscar/encuentra/localiza
                 const match = cmd.match(/(?:buscar|encuentra|localiza)\s+(.+)/);
                 if (match && match[1]) {
-                    const textoBusqueda = match[1].trim(); // Extrae solo el texto limpio
-                    return { 
-                        accion: 'buscar', 
-                        textoBusqueda: textoBusqueda, 
-                        mensaje: `🔍 Buscando "${textoBusqueda}"...` 
+                    const textoBusqueda = match[1].trim();
+                    return {
+                        accion: 'buscar',
+                        textoBusqueda: textoBusqueda,
+                        mensaje: `🔍 Buscando "${textoBusqueda}"...`
                     };
                 }
             }
@@ -397,7 +388,6 @@
         }
     </script>
 
-    <!-- Registro del Service Worker -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {

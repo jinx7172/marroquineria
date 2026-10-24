@@ -35,8 +35,8 @@
 
             <form method="POST">
                 <div class="form-group">
-                    <label for="email">Correo Electrónico</label>
-                    <input type="email" id="email" name="email" placeholder="ejemplo@correo.com" required>
+                    <label for="username">Usuario</label>
+                    <input type="text" id="username" name="username" placeholder="admin" required autofocus>
                 </div>
 
                 <div class="form-group">
@@ -56,10 +56,6 @@
 
                 <button type="submit" class="btn-auth">Entrar</button>
             </form>
-
-            <div class="auth-footer">
-                ¿No tienes una cuenta? <a href="{{ url_for('register') }}">Regístrate aquí</a>
-            </div>
         </div>
     </div>
 
