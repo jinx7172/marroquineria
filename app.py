@@ -366,6 +366,9 @@ def productos_view():
     productos = load_data('productos.json')
     inventario = load_data('inventario.json')
     
+    # Creamos el diccionario seguro para JS
+    inv_dict = {str(i['id_inventario']): {'unidad': i.get('unidad_medida', 'u'), 'nombre': i['material']} for i in inventario}
+    
     if request.method == 'POST':
         accion = request.form.get('accion')
         
@@ -378,9 +381,8 @@ def productos_view():
                 if not prod_actual: raise ValueError
 
                 receta = prod_actual.get('materiales', [])
-                materiales_gastados_msg = [] # NUEVO: Para el registro
+                materiales_gastados_msg = []
                 
-                # 1. VERIFICAR STOCK
                 for item in receta:
                     mat_id = int(item['id_material'])
                     cant_receta = float(item['cantidad'])
@@ -394,7 +396,6 @@ def productos_view():
                     if float(inv_item['cantidad']) < cant_a_descontar:
                         raise ValueError(f"Falta '{inv_item['material']}'. Necesitas {round(cant_a_descontar, 2)} y tienes {inv_item['cantidad']}.")
 
-                # 2. DESCONTAR Y GUARDAR MENSAJE
                 for item in receta:
                     mat_id = int(item['id_material'])
                     cant_receta = float(item['cantidad'])
@@ -412,13 +413,12 @@ def productos_view():
                 prod_actual['stock'] += cantidad_aumentar
                 save_data('productos.json', productos)
                 
-                # Registramos la actividad detallada
                 detalle_final = f"Fabricación de {cantidad_aumentar} uds de '{prod_actual['nombre_producto']}'. Se gastó: " + ", ".join(materiales_gastados_msg)
                 registrar_actividad("Fabricación", detalle_final, "materiales")
                 
                 return redirect(url_for('productos_view'))
             except Exception as e:
-                return render_template('productos.html', productos=productos, inventario=inventario, error=f"Error: {str(e)}")
+                return render_template('productos.html', productos=productos, inventario=inventario, inv_dict=inv_dict, error=f"Error: {str(e)}")
 
         if accion == 'eliminar':
             try:
@@ -433,7 +433,7 @@ def productos_view():
             precio = float(request.form.get('precio', '0'))
             if precio <= 0: raise ValueError
         except:
-            return render_template('productos.html', productos=productos, inventario=inventario, error="Precio inválido")
+            return render_template('productos.html', productos=productos, inventario=inventario, inv_dict=inv_dict, error="Precio inválido")
         
         imagen_url = ""
         if 'imagen_file' in request.files:
@@ -484,7 +484,7 @@ def productos_view():
             registrar_actividad("Producto Nuevo", f"Se creó el producto '{nombre_producto}'.", "productos")
             return redirect(url_for('productos_view'))
             
-    return render_template('productos.html', productos=productos, inventario=inventario, error=None)
+    return render_template('productos.html', productos=productos, inventario=inventario, inv_dict=inv_dict, error=None)
 
 @app.route('/inventario', methods=['GET', 'POST'])
 @login_required

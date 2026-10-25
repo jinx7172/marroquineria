@@ -150,7 +150,6 @@
 </div>
 
 <style>
-    /* Forzamos el color oscuro del selector para que no se vea el recuadro blanco en modo oscuro */
     .unidad-select {
         padding: 8px;
         border: none;
@@ -168,7 +167,6 @@
         width: 70px;
         text-align: center;
     }
-    /* Añadimos una flechita manual para evitar que el navegador ponga su icono gigante */
     .unidad-select-wrapper {
         position: relative;
         display: flex;
@@ -186,19 +184,9 @@
     }
 </style>
 
-<script type="application/json" id="inventario-info">
-{
-    {% for inv in inventario %}
-    {{ inv.id_inventario | tojson }}: { "unidad": {{ inv.unidad_medida | tojson }}, "nombre": {{ inv.material | tojson }} }{% if not loop.last %},{% endif %}
-    {% endfor %}
-}
-</script>
-
 <script>
-    // Diccionario de materiales extraído de Flask
-    const INVENTARIO_INFO = JSON.parse(document.getElementById('inventario-info').textContent);
+    const INVENTARIO_INFO = JSON.parse('{{ inv_dict | tojson | safe }}');
 
-    // Grupos lógicos de unidades
     const GRUPOS_UNIDADES = {
         'longitud': ['m', 'cm', 'mm', 'pies', 'yardas'],
         'peso': ['kg', 'g'],
@@ -245,7 +233,6 @@
         const parentDiv = selectElement.parentElement;
         const unidadSelect = parentDiv.querySelector('.unidad-select');
         
-        // Limpiamos las opciones actuales
         unidadSelect.innerHTML = '';
         unidadSelect.disabled = false;
 
@@ -258,12 +245,10 @@
         const grupo = obtenerGrupo(unidadBase);
         const unidadesPermitidas = GRUPOS_UNIDADES[grupo] || [unidadBase];
 
-        // Si solo hay una opción válida (ej. rollos, unidades), lo bloqueamos
         if (unidadesPermitidas.length === 1) {
             unidadSelect.disabled = true; 
         }
 
-        // Llenamos el select
         unidadesPermitidas.forEach(u => {
             const opt = document.createElement('option');
             opt.value = u;
@@ -273,7 +258,6 @@
         });
     }
 
-    // Lógica para el modal de fabricación
     let recetaActual = [];
     function openStockModal(btn) {
         const id = btn.getAttribute('data-id');
