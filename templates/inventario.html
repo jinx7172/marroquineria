@@ -7,7 +7,7 @@
 {% endif %}
 
 <div class="form-container">
-    <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Registrar Material</h3>
+    <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--text-light);"><i class="fa-solid fa-plus-circle"></i> Registrar Nuevo Material</h3>
     <form method="POST">
         <input type="hidden" name="accion" value="crear">
         <div class="input-group">
@@ -15,7 +15,7 @@
             <select name="proveedor" required>
                 <option value="">Seleccionar Proveedor</option>
                 {% for prov in proveedores %}
-                <option value="{{ prov.nombre_empresa }}">{{ prov.nombre_empresa }} ({{ prov.que_provee }})</option>
+                <option value="{{ prov.nombre_empresa }}">{{ prov.nombre_empresa }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -24,8 +24,8 @@
             <input type="text" name="material" placeholder="Ej: Cuero Vacuno" required>
         </div>
         <div class="input-group">
-            <label>Cantidad *</label>
-            <input type="number" min="1" name="cantidad" placeholder="10" required>
+            <label>Cantidad Inicial *</label>
+            <input type="number" step="0.01" min="0" name="cantidad" placeholder="10" required>
         </div>
         <div class="input-group">
             <label>Unidad de Medida *</label>
@@ -36,8 +36,10 @@
                 <option value="u">Unidades (u)</option>
                 <option value="p">Pares (p)</option>
                 <option value="kg">Kilogramos (kg)</option>
+                <option value="g">Gramos (g)</option>
                 <option value="l">Litros (l)</option>
-                <option value="pies">Pies (pies)</option>
+                <option value="ml">Mililitros (ml)</option>
+                <option value="pies">Pies</option>
                 <option value="yardas">Yardas</option>
                 <option value="rollos">Rollos</option>
             </select>
@@ -51,12 +53,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Material</th>
-                    <th>Cantidad</th>
-                    <th>Unidad</th>
-                    <th>Proveído por</th>
-                    <th>Acciones</th>
+                    <th>ID</th><th>Material</th><th>Cantidad</th><th>Unidad</th><th>Proveído por</th><th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -65,75 +62,80 @@
                     <td>{{ i.id_inventario }}</td>
                     <td><strong>{{ i.material }}</strong></td>
                     <td>{{ i.cantidad }}</td>
-                    <td>
-                        <!-- CORREGIDO: Clase badge-unidad -->
-                        <span class="badge-unidad">
-                            {{ i.unidad_medida if i.unidad_medida else 'u' }}
-                        </span>
-                    </td>
+                    <td><span class="badge-unidad">{{ i.unidad_medida if i.unidad_medida else 'u' }}</span></td>
                     <td><span style="background:#d1f2eb; padding:4px 8px; border-radius:12px; color:#148f77; font-weight:600;">{{ i.proveedor }}</span></td>
                     <td>
+                        <!-- NUEVO BOTÓN VERDE PARA SUMAR STOCK -->
+                        <button class="btn-icon" onclick="openSumarModal('{{ i.id_inventario }}', '{{ i.material }}', '{{ i.unidad_medida }}')" title="Añadir Stock" style="color: #27ae60;">
+                            <i class="fa-solid fa-plus-circle" style="font-size: 1.3rem;"></i>
+                        </button>
+                        
                         <button class="btn-icon" onclick="toggleEditInv('{{ i.id_inventario }}')" title="Editar">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
-                        <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Eliminar este material?');">
+                        <form method="POST" style="display:inline; margin:0;" onsubmit="return confirm('¿Eliminar material?');">
                             <input type="hidden" name="accion" value="eliminar">
                             <input type="hidden" name="inventario_id" value="{{ i.id_inventario }}">
-                            <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
+                            <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;"><i class="fa-solid fa-trash-can"></i></button>
                         </form>
                     </td>
                 </tr>
 
-                <tr id="edit-row-inv-{{ i.id_inventario }}" style="display: none; background-color: #f8fafc;">
+                <tr id="edit-row-inv-{{ i.id_inventario }}" style="display: none; background-color: var(--bg-body);">
                     <td colspan="6">
                         <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px;">
-                            <h4 style="margin: 0 0 10px 0; color: var(--accent-color); font-size: 0.9rem;">
-                                <i class="fa-solid fa-pen"></i> Editando: {{ i.material }}
-                            </h4>
-                            <form method="POST" class="inline-form">
+                            <form method="POST" class="inline-form" style="display: flex; gap: 10px; align-items: flex-end;">
                                 <input type="hidden" name="accion" value="editar">
                                 <input type="hidden" name="inventario_id" value="{{ i.id_inventario }}">
-                                <div class="input-group">
-                                    <label style="font-size:0.7rem;">Material</label>
-                                    <input type="text" name="material" value="{{ i.material }}" required>
-                                </div>
-                                <div class="input-group">
-                                    <label style="font-size:0.7rem;">Cantidad</label>
-                                    <input type="number" name="cantidad" value="{{ i.cantidad }}" min="0" required>
-                                </div>
+                                <div class="input-group"><label style="font-size:0.7rem;">Material</label><input type="text" name="material" value="{{ i.material }}" required></div>
+                                <div class="input-group"><label style="font-size:0.7rem;">Cantidad</label><input type="number" step="0.01" name="cantidad" value="{{ i.cantidad }}" required></div>
                                 <div class="input-group">
                                     <label style="font-size:0.7rem;">Unidad</label>
                                     <select name="unidad_medida">
-                                        <option value="m" {% if i.unidad_medida == 'm' %}selected{% endif %}>Metros (m)</option>
-                                        <option value="cm" {% if i.unidad_medida == 'cm' %}selected{% endif %}>Centímetros (cm)</option>
-                                        <option value="u" {% if i.unidad_medida == 'u' or not i.unidad_medida %}selected{% endif %}>Unidades (u)</option>
-                                        <option value="p" {% if i.unidad_medida == 'p' %}selected{% endif %}>Pares (p)</option>
-                                        <option value="kg" {% if i.unidad_medida == 'kg' %}selected{% endif %}>Kilogramos (kg)</option>
-                                        <option value="l" {% if i.unidad_medida == 'l' %}selected{% endif %}>Litros (l)</option>
-                                        <option value="pies" {% if i.unidad_medida == 'pies' %}selected{% endif %}>Pies</option>
-                                        <option value="yardas" {% if i.unidad_medida == 'yardas' %}selected{% endif %}>Yardas</option>
-                                        <option value="rollos" {% if i.unidad_medida == 'rollos' %}selected{% endif %}>Rollos</option>
+                                        <option value="m" {% if i.unidad_medida == 'm' %}selected{% endif %}>m</option>
+                                        <option value="cm" {% if i.unidad_medida == 'cm' %}selected{% endif %}>cm</option>
+                                        <option value="u" {% if i.unidad_medida == 'u' %}selected{% endif %}>u</option>
+                                        <option value="p" {% if i.unidad_medida == 'p' %}selected{% endif %}>p</option>
+                                        <option value="kg" {% if i.unidad_medida == 'kg' %}selected{% endif %}>kg</option>
+                                        <option value="g" {% if i.unidad_medida == 'g' %}selected{% endif %}>g</option>
+                                        <option value="l" {% if i.unidad_medida == 'l' %}selected{% endif %}>l</option>
+                                        <option value="ml" {% if i.unidad_medida == 'ml' %}selected{% endif %}>ml</option>
+                                        <option value="rollos" {% if i.unidad_medida == 'rollos' %}selected{% endif %}>rollos</option>
                                     </select>
                                 </div>
-                                <div style="display: flex; gap: 10px; align-items: flex-end;">
-                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
-                                        <i class="fa-solid fa-floppy-disk"></i> Guardar
-                                    </button>
-                                    <button type="button" onclick="toggleEditInv('{{ i.id_inventario }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
-                                        Cancelar
-                                    </button>
-                                </div>
+                                <button type="submit" class="btn-primary" style="padding: 8px 15px;"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+                                <button type="button" onclick="toggleEditInv('{{ i.id_inventario }}')" style="background: #95a5a6; padding: 8px 15px; border: none; color: white; border-radius: 8px; cursor:pointer;">Cancelar</button>
                             </form>
                         </div>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" style="text-align:center; padding: 30px;">No hay materiales en el inventario.</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding: 30px;">No hay materiales registrados.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- MODAL PARA SUMAR STOCK -->
+<div id="sumarModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999;">
+    <div style="background: var(--card-bg); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+        <h3 style="margin-top: 0; color: #27ae60;"><i class="fa-solid fa-boxes-packing"></i> Sumar al Inventario</h3>
+        <p style="color: var(--text-light);">¿Cuánto material extra de <strong id="modalMatName" style="color: var(--text-main);"></strong> ingresó?</p>
+        
+        <form method="POST">
+            <input type="hidden" name="accion" value="sumar_stock">
+            <input type="hidden" name="inventario_id" id="modalMatId" value="">
+            
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label>Cantidad a sumar (<span id="modalMatUnidad"></span>) *</label>
+                <input type="number" step="0.01" name="cantidad_sumar" min="0.01" placeholder="Ej: 10" required>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="closeSumarModal()" style="background: #95a5a6; padding: 10px 20px; border: none; color: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
+                <button type="submit" class="btn-primary" style="padding: 10px 20px; background: #27ae60;">Añadir Material</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -143,11 +145,22 @@
         const dataRow = document.getElementById(`row-inv-${id}`);
         if (editRow.style.display === 'none') {
             editRow.style.display = 'table-row';
-            dataRow.style.backgroundColor = '#f1f9ff';
+            dataRow.style.backgroundColor = 'var(--bg-body)';
         } else {
             editRow.style.display = 'none';
             dataRow.style.backgroundColor = '';
         }
+    }
+
+    function openSumarModal(id, nombre, unidad) {
+        document.getElementById('modalMatId').value = id;
+        document.getElementById('modalMatName').innerText = nombre;
+        document.getElementById('modalMatUnidad').innerText = unidad;
+        document.getElementById('sumarModal').style.display = 'flex';
+    }
+
+    function closeSumarModal() {
+        document.getElementById('sumarModal').style.display = 'none';
     }
 </script>
 {% endblock %}

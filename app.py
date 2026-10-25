@@ -1,6 +1,6 @@
 import os
 import json
-import datetime  # <-- ESTA LÍNEA FALTABA Y CAUSABA EL ERROR 500
+import datetime
 import secrets
 import requests
 import re
@@ -47,21 +47,15 @@ def validar_email(email):
 
 # --- SISTEMA DE CONVERSIÓN INTELIGENTE DE UNIDADES ---
 def obtener_cantidad_en_unidad_base(cantidad, unidad_dada, unidad_inventario):
-    """Convierte una cantidad a la unidad en la que está guardado el inventario."""
     cantidad = float(cantidad)
-    
-    # Tabla de conversiones a unidad base (Metros, Kilos, Litros, Unidades)
     a_base = {
         'm': 1.0, 'cm': 0.01, 'mm': 0.001,
         'kg': 1.0, 'g': 0.001,
         'l': 1.0, 'ml': 0.001,
         'u': 1.0, 'p': 1.0, 'pies': 0.3048, 'yardas': 0.9144, 'rollos': 1.0
     }
-    
     if unidad_dada not in a_base or unidad_inventario not in a_base:
-        return cantidad # Si no se puede convertir, devuelve igual
-
-    # Si son del mismo tipo (ej: pies y metros)
+        return cantidad 
     cant_en_base = cantidad * a_base[unidad_dada]
     cant_final = cant_en_base / a_base[unidad_inventario]
     return cant_final
@@ -168,7 +162,6 @@ def login_required(f):
     return wrap
 
 def registrar_actividad(accion, detalles, categoria):
-    """Registra y categoriza la actividad para el panel de registro."""
     logs = load_data('registro_actividad.json')
     nuevo_log = {
         'id': len(logs) + 1,
@@ -176,7 +169,7 @@ def registrar_actividad(accion, detalles, categoria):
         'usuario': session.get('user_name', 'Admin'),
         'accion': accion,
         'detalles': detalles,
-        'categoria': categoria # ventas, materiales, productos
+        'categoria': categoria 
     }
     logs.insert(0, nuevo_log)
     save_data('registro_actividad.json', logs)
@@ -258,13 +251,11 @@ def home():
     offset_semanas = request.args.get('semana', default=0, type=int)
     clientes = load_data('clientes.json')
     ventas = load_data('ventas.json')
-    
     total_clientes = len(clientes)
     total_ventas_general = sum(v.get('total', 0) for v in ventas)
     hoy = datetime.date.today().isoformat()
     ganancias_hoy = sum(v.get('total', 0) for v in ventas if v.get('fecha') == hoy)
     productos_vendidos_hoy = sum(v.get('cantidad', 0) for v in ventas if v.get('fecha') == hoy)
-    
     hoy_date = datetime.date.today()
     year, week_num, _ = hoy_date.isocalendar()
     fecha_lunes = datetime.date.fromisocalendar(year, week_num + offset_semanas, 1)
@@ -387,37 +378,33 @@ def productos_view():
                 if not prod_actual: raise ValueError
 
                 receta = prod_actual.get('materiales', [])
+                materiales_gastados_msg = [] # NUEVO: Para el registro
                 
-                # 1. VERIFICAR STOCK DE MATERIALES CON CONVERSIÓN
+                # 1. VERIFICAR STOCK
                 for item in receta:
                     mat_id = int(item['id_material'])
                     cant_receta = float(item['cantidad'])
                     unidad_receta = item.get('unidad', 'u')
-                    
                     inv_item = next((i for i in inventario if int(i['id_inventario']) == mat_id), None)
-                    if not inv_item:
-                        return render_template('productos.html', productos=productos, inventario=inventario, error=f"Material ID {mat_id} no existe en el inventario.")
-
-                    unidad_inv = inv_item.get('unidad_medida', 'u')
-                    cant_total_necesaria = cant_receta * cantidad_aumentar
+                    if not inv_item: raise ValueError(f"Material ID {mat_id} no existe.")
                     
-                    # Convertir lo que pide la receta a la unidad en la que está el inventario (ej: cm a m)
-                    cant_a_descontar = obtener_cantidad_en_unidad_base(cant_total_necesaria, unidad_receta, unidad_inv)
+                    cant_total_necesaria = cant_receta * cantidad_aumentar
+                    cant_a_descontar = obtener_cantidad_en_unidad_base(cant_total_necesaria, unidad_receta, inv_item.get('unidad_medida', 'u'))
                     
                     if float(inv_item['cantidad']) < cant_a_descontar:
-                        return render_template('productos.html', productos=productos, inventario=inventario, error=f"Stock insuficiente de '{inv_item['material']}'. Tienes {inv_item['cantidad']} {unidad_inv} y necesitas {round(cant_a_descontar, 2)} {unidad_inv} para fabricar esta cantidad.")
+                        raise ValueError(f"Falta '{inv_item['material']}'. Necesitas {round(cant_a_descontar, 2)} y tienes {inv_item['cantidad']}.")
 
-                # 2. DESCONTAR MATERIALES
+                # 2. DESCONTAR Y GUARDAR MENSAJE
                 for item in receta:
                     mat_id = int(item['id_material'])
                     cant_receta = float(item['cantidad'])
                     unidad_receta = item.get('unidad', 'u')
                     
                     inv_item = next((i for i in inventario if int(i['id_inventario']) == mat_id), None)
-                    unidad_inv = inv_item.get('unidad_medida', 'u')
-                    cant_a_descontar = obtener_cantidad_en_unidad_base(cant_receta * cantidad_aumentar, unidad_receta, unidad_inv)
+                    cant_a_descontar = obtener_cantidad_en_unidad_base(cant_receta * cantidad_aumentar, unidad_receta, inv_item.get('unidad_medida', 'u'))
                     
                     inv_item['cantidad'] = round(float(inv_item['cantidad']) - cant_a_descontar, 4)
+                    materiales_gastados_msg.append(f"{round(cant_a_descontar, 2)} {inv_item.get('unidad_medida', 'u')} de {inv_item['material']}")
                 
                 save_data('inventario.json', inventario)
                 
@@ -425,10 +412,13 @@ def productos_view():
                 prod_actual['stock'] += cantidad_aumentar
                 save_data('productos.json', productos)
                 
-                registrar_actividad("Fabricación", f"Se fabricaron {cantidad_aumentar} uds de '{prod_actual['nombre_producto']}'.", "productos")
+                # Registramos la actividad detallada
+                detalle_final = f"Fabricación de {cantidad_aumentar} uds de '{prod_actual['nombre_producto']}'. Se gastó: " + ", ".join(materiales_gastados_msg)
+                registrar_actividad("Fabricación", detalle_final, "materiales")
+                
                 return redirect(url_for('productos_view'))
             except Exception as e:
-                return render_template('productos.html', productos=productos, inventario=inventario, error=f"Error al fabricar: {str(e)}")
+                return render_template('productos.html', productos=productos, inventario=inventario, error=f"Error: {str(e)}")
 
         if accion == 'eliminar':
             try:
@@ -504,6 +494,25 @@ def inventario_view():
     
     if request.method == 'POST':
         accion = request.form.get('accion')
+        
+        if accion == 'sumar_stock':
+            try:
+                inventario_id = int(request.form.get('inventario_id'))
+                cantidad_a_sumar = float(request.form.get('cantidad_sumar', 0))
+                if cantidad_a_sumar <= 0: raise ValueError
+                
+                for item in inventario:
+                    if item['id_inventario'] == inventario_id:
+                        item['cantidad'] = float(item['cantidad']) + cantidad_a_sumar
+                        nombre_mat = item['material']
+                        unidad = item.get('unidad_medida', 'u')
+                        break
+                
+                save_data('inventario.json', inventario)
+                registrar_actividad("Inventario", f"Se sumaron {cantidad_a_sumar} {unidad} a '{nombre_mat}'.", "materiales")
+                return redirect(url_for('inventario_view'))
+            except: pass
+
         if accion == 'eliminar':
             try:
                 inventario_id = int(request.form.get('inventario_id'))
@@ -538,7 +547,7 @@ def inventario_view():
             'unidad_medida': unidad_medida, 'proveedor': proveedor
         })
         save_data('inventario.json', inventario)
-        registrar_actividad("Inventario", f"Se añadieron {cantidad} {unidad_medida} de '{material}'.", "materiales")
+        registrar_actividad("Inventario", f"Se registró nuevo material '{material}' con {cantidad} {unidad_medida}.", "materiales")
         return redirect(url_for('inventario_view'))
     
     return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error=None)
@@ -590,15 +599,12 @@ def registro_view():
 @app.route('/exportar_registro')
 @login_required
 def exportar_registro():
-    """Genera un archivo CSV compatible con Excel para descargar el registro."""
     logs = load_data('registro_actividad.json')
     def generate():
         yield "ID,Fecha,Usuario,Accion,Categoria,Detalles\n"
         for log in logs:
-            # Limpiamos el texto para que no rompa el CSV
             detalles = log.get('detalles', '').replace(',', ' -').replace('\n', ' ')
             yield f"{log.get('id')},{log.get('fecha')},{log.get('usuario')},{log.get('accion')},{log.get('categoria')},{detalles}\n"
-    
     return Response(generate(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=registro_marcani.csv"})
 
 @app.errorhandler(404)
