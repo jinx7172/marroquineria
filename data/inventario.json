@@ -2,14 +2,14 @@
     {
         "id_inventario": 1,
         "material": "Cuero Vacuno Negro",
-        "cantidad": 3,
+        "cantidad": 0.0,
         "unidad_medida": "rollos",
         "proveedor": "Cuero Premium SRL"
     },
     {
         "id_inventario": 2,
         "material": "Tela Interior Premium",
-        "cantidad": 5,
+        "cantidad": 3.2,
         "unidad_medida": "m",
         "proveedor": "Insumos Textiles Andina"
     },
@@ -23,7 +23,7 @@
     {
         "id_inventario": 4,
         "material": "Cremallera Reforzada",
-        "cantidad": 10,
+        "cantidad": 9.1,
         "unidad_medida": "m",
         "proveedor": "Cremalleras Express"
     },

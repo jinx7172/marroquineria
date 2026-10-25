@@ -1,0 +1,9 @@
+[
+    {
+        "id_usuario": 1,
+        "nombre": "Administrador",
+        "username": "admin",
+        "email": "admin@marcani.local",
+        "password_hash": "scrypt:32768:8:1$K8v0CYSfB0jl9Hpk$1d1052a6eeacd60068258d2468a02e7f36373cd8dde523d1e4d5f078d435dd276a84c1d9cbc609bc33af5be6be8b0c151f8c4d6043c80a725f5a7e3fb219772e"
+    }
+]

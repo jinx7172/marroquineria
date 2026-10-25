@@ -34,5 +34,30 @@
         "precio": 117.0,
         "imagen": "/static/uploads/4b999206c27cdc13_Bandolera2.png",
         "stock": 90
+    },
+    {
+        "id_producto": 6,
+        "nombre_producto": "bandolera de cuero",
+        "precio": 70.0,
+        "imagen": "/static/uploads/79eca97687f446ac_IMG_20260930_155453_908.jpg",
+        "mostrar_como_nuevo": false,
+        "materiales": [
+            {
+                "id_material": 1,
+                "cantidad": 1.0,
+                "unidad": "rollos"
+            },
+            {
+                "id_material": 2,
+                "cantidad": 60.0,
+                "unidad": "cm"
+            },
+            {
+                "id_material": 4,
+                "cantidad": 30.0,
+                "unidad": "cm"
+            }
+        ],
+        "stock": 3
     }
 ]

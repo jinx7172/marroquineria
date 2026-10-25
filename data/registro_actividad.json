@@ -1,0 +1,18 @@
+[
+    {
+        "id": 2,
+        "fecha": "2026-10-25 13:13:07",
+        "usuario": "Administrador",
+        "accion": "Fabricación",
+        "detalles": "Se fabricaron 3 uds de 'bandolera de cuero'.",
+        "categoria": "productos"
+    },
+    {
+        "id": 1,
+        "fecha": "2026-10-25 13:12:21",
+        "usuario": "Administrador",
+        "accion": "Producto Nuevo",
+        "detalles": "Se creó el producto 'bandolera de cuero'.",
+        "categoria": "productos"
+    }
+]
