@@ -66,6 +66,9 @@
                 <a href="{{ url_for('configuracion_view') }}" class="nav-item {% if 'configuracion' in request.path %}active{% endif %}">
                     <i class="fa-solid fa-gear"></i> <span>Configuración</span>
                 </a>
+                <a href="{{ url_for('registro_view') }}" class="nav-item {% if 'registro' in request.path %}active{% endif %}">
+                    <i class="fa-solid fa-clipboard-list"></i> <span>Registro</span>
+                </a>
             </nav>
         </aside>
 

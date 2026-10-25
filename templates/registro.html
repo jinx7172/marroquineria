@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="section-header"><i class="fa-solid fa-clipboard-list"></i> Registro de Actividad</h1>
+
+<div class="table-container">
+    <div style="padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por acción o detalle...">
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Detalles</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                {% for log in logs %}
+                <tr>
+                    <td style="white-space: nowrap; font-size: 0.85rem; color: var(--text-light);">{{ log.fecha }}</td>
+                    <td><strong>{{ log.usuario }}</strong></td>
+                    <td>
+                        {% if log.accion == 'Venta' %}
+                            <span style="background:#d4edda; color:#155724; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-cash-register"></i> {{ log.accion }}</span>
+                        {% elif log.accion == 'Fabricación' %}
+                            <span style="background:#cce5ff; color:#004085; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-industry"></i> {{ log.accion }}</span>
+                        {% elif log.accion == 'Producto Nuevo' %}
+                            <span style="background:#fff3cd; color:#856404; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-box"></i> {{ log.accion }}</span>
+                        {% else %}
+                            <span style="background:#e2e3e5; color:#383d41; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;">{{ log.accion }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 0.9rem;">{{ log.detalles }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" style="text-align:center; padding: 30px;">No hay actividad registrada aún.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+        for (let i = 0; i < rows.length; i++) {
+            const cells = rows[i].getElementsByTagName('td');
+            if (cells.length > 0) {
+                const accion = cells[2].textContent.toLowerCase();
+                const detalle = cells[3].textContent.toLowerCase();
+                if (accion.includes(filter) || detalle.includes(filter)) {
+                    rows[i].style.display = '';
+                } else {
+                    rows[i].style.display = 'none';
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
