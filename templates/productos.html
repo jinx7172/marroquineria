@@ -48,7 +48,6 @@
             </button>
         </div>
 
-        <!-- Checkbox para aparecer en catálogo como nuevo -->
         <div class="input-group" style="flex: 1; min-width: 200px; display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 20px;">
             <input type="checkbox" id="mostrar_como_nuevo" name="mostrar_como_nuevo" style="width: 20px; height: 20px; accent-color: var(--accent-color);">
             <label for="mostrar_como_nuevo" style="margin: 0; font-weight: normal; cursor: pointer; color: var(--text-main);">
@@ -89,19 +88,15 @@
                     </td>
                     <td><strong>{{ p.nombre_producto }}</strong></td>
                     <td>${{ p.precio }}</td>
+                    <td><span class="badge-stock">{{ p.stock if p.stock is defined else 0 }}</span></td>
                     <td>
-                        <span class="badge-stock">
-                            {{ p.stock if p.stock is defined else 0 }}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn-icon" type="button" data-stock-product-id="{{ p.id_producto }}" data-stock-product-name="{{ p.nombre_producto }}" data-stock-recipe='{{ p.materiales|default([])|tojson|forceescape }}' title="Aumentar Stock" style="color: #27ae60;">
+                        <button class="btn-icon" onclick="openStockModal(this)" data-id="{{ p.id_producto }}" data-name="{{ p.nombre_producto }}" data-materiales='{{ p.materiales|default([])|tojson }}' title="Aumentar Stock" style="color: #27ae60;">
                             <i class="fa-solid fa-plus-circle" style="font-size: 1.3rem;"></i>
                         </button>
                         <button class="btn-icon" onclick="toggleEdit('{{ p.id_producto }}')" title="Editar">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
-                        <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este producto?');">
+                        <form method="POST" style="display:inline; margin:0;" onsubmit="return confirm('¿Eliminar producto?');">
                             <input type="hidden" name="accion" value="eliminar">
                             <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
                             <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
@@ -111,14 +106,14 @@
                     </td>
                 </tr>
                 
-                <!-- FILA OCULTA PARA EDITAR -->
+                <!-- FILA EDITAR -->
                 <tr id="edit-row-{{ p.id_producto }}" style="display: none; background-color: var(--bg-body);">
                     <td colspan="6">
                         <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px; background-color: var(--card-bg);">
                             <h4 style="margin: 0 0 15px 0; color: var(--accent-color); font-size: 0.9rem;">
                                 <i class="fa-solid fa-pen"></i> Editando: <strong style="color: var(--text-main);">{{ p.nombre_producto }}</strong>
                             </h4>
-                            <form method="POST" enctype="multipart/form-data" class="inline-form" style="background: transparent; padding: 0; border: none; display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+                            <form method="POST" enctype="multipart/form-data" class="inline-form" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
                                 <input type="hidden" name="accion" value="editar">
                                 <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
                                 
@@ -130,54 +125,39 @@
                                     <label style="font-size:0.7rem;">Precio</label>
                                     <input type="number" step="0.01" name="precio" value="{{ p.precio }}" required>
                                 </div>
-                                <div class="input-group" style="min-width: 100px; flex: 0.5;">
-                                    <label style="font-size:0.7rem;">Stock actual</label>
-                                    <input type="number" name="stock" value="{{ p.stock if p.stock is defined else 0 }}" required>
-                                </div>
                                 <div class="input-group" style="min-width: 150px; flex: 1;">
                                     <label style="font-size:0.7rem;">Cambiar Imagen</label>
                                     <input type="file" name="imagen_file" accept="image/*">
                                 </div>
-                                
-                                <div class="input-group" style="flex: 0.5; min-width: 140px; display: flex; flex-direction: row; align-items: center; gap: 8px; padding-bottom: 5px;">
-                                    <input type="checkbox" id="edit_mostrar_como_nuevo_{{ p.id_producto }}" name="mostrar_como_nuevo" style="width: 18px; height: 18px; accent-color: var(--accent-color);" {% if p.mostrar_como_nuevo %}checked{% endif %}>
-                                    <label for="edit_mostrar_como_nuevo_{{ p.id_producto }}" style="margin: 0; font-weight: normal; cursor: pointer; font-size: 0.75rem; color: var(--text-main);">
-                                        Mostrar "NUEVO"
-                                    </label>
-                                </div>
 
                                 <div style="width: 100%; margin-top: 10px;">
-                                    <label style="font-size: 0.8rem; color: var(--text-light); font-weight: bold; margin-bottom: 5px; display: block;">Receta / Materiales (por unidad):</label>
+                                    <label style="font-size: 0.8rem; color: var(--text-light); font-weight: bold; margin-bottom: 5px; display: block;">Receta actual:</label>
                                     <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                                         {% for mat in p.materiales|default([]) %}
                                         <div style="background: var(--bg-body); padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-light); font-size: 0.8rem;">
-                                            {{ mat.nombre_material|default('Material ' ~ mat.id_material) }} (x{{ mat.cantidad }})
+                                            ID: {{ mat.id_material }} (x{{ mat.cantidad }} {{ mat.unidad|default('u') }})
                                         </div>
                                         {% endfor %}
                                     </div>
                                 </div>
 
                                 <div style="display: flex; gap: 10px; align-items: center; padding-bottom: 2px; width: 100%; justify-content: flex-end; margin-top: 10px;">
-                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;">
-                                        <i class="fa-solid fa-floppy-disk"></i> Guardar
-                                    </button>
-                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">
-                                        Cancelar
-                                    </button>
+                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">Cancelar</button>
                                 </div>
                             </form>
                         </div>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" style="text-align:center; padding: 30px;">No hay productos registrados aún.</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding: 30px;">No hay productos registrados.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- Modal Aumentar Stock (Fabricación) -->
+<!-- Modal Aumentar Stock -->
 <div id="stockModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999;">
     <div style="background: var(--card-bg); padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border-light);">
         <h3 style="margin-top: 0; color: #27ae60;"><i class="fa-solid fa-industry"></i> Fabricar / Aumentar Stock</h3>
@@ -192,7 +172,6 @@
                 <input type="number" name="cantidad_aumentar" id="cantidad_aumentar" min="1" placeholder="Ej: 10" required oninput="calcularMateriales()">
             </div>
 
-            <!-- Sección dinámica que muestra el consumo de materiales -->
             <div id="materialesInfo" style="display: none; background: var(--bg-body); padding: 15px; border-radius: 8px; border: 1px solid var(--border-light); margin-bottom: 20px;">
                 <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-main);"><i class="fa-solid fa-list-check"></i> Materiales requeridos:</h4>
                 <ul id="materialesLista" style="margin: 0; padding-left: 20px; color: var(--text-light); font-size: 0.9rem;"></ul>
@@ -217,23 +196,42 @@
         row.className = 'material-row';
 
         row.innerHTML = `
-            <select name="material_id[]" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-body); color: var(--text-main);">
+            <select name="material_id[]" onchange="actualizarUnidad(this)" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-body); color: var(--text-main);">
                 <option value="">Seleccionar Material...</option>
                 {% for inv in inventario %}
-                    <option value="{{ inv.id_inventario }}">{{ inv.material }} ({{ inv.unidad_medida }})</option>
+                    <option value="{{ inv.id_inventario }}" data-unidad="{{ inv.unidad_medida }}">{{ inv.material }} ({{ inv.unidad_medida }})</option>
                 {% endfor %}
             </select>
-            <input type="number" step="0.01" min="0.01" name="material_cantidad[]" placeholder="Cant. por unidad" style="width: 120px; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-body); color: var(--text-main);">
+            <div style="display: flex; align-items: center; background: var(--bg-body); border: 1px solid var(--border-light); border-radius: 6px; overflow: hidden;">
+                <input type="number" step="0.01" min="0.01" name="material_cantidad[]" placeholder="Cant." style="width: 80px; padding: 8px; border: none; background: transparent; color: var(--text-main); outline: none;">
+                <span class="unidad-label" style="padding: 0 10px; font-size: 0.8rem; color: var(--text-light); font-weight: bold; background: rgba(0,0,0,0.1); border-left: 1px solid var(--border-light);">u</span>
+                <input type="hidden" name="material_unidad[]" class="unidad-hidden" value="u">
+            </div>
             <button type="button" onclick="this.parentElement.remove()" style="background: #e74c3c; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
         `;
         container.appendChild(row);
     }
 
-    // --- LÓGICA PARA EL MODAL DE FABRICACIÓN (AUMENTAR STOCK) ---
+    function actualizarUnidad(selectElement) {
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        const unidad = selectedOption.getAttribute('data-unidad') || 'u';
+        const parentDiv = selectElement.parentElement;
+        const label = parentDiv.querySelector('.unidad-label');
+        const hidden = parentDiv.querySelector('.unidad-hidden');
+        label.innerText = unidad;
+        hidden.value = unidad;
+    }
+
+    // --- LÓGICA PARA EL MODAL DE FABRICACIÓN ---
     let recetaActual = [];
 
-    function openStockModal(id, name, receta) {
-        recetaActual = receta || [];
+    function openStockModal(btn) {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        const recetaStr = btn.getAttribute('data-materiales');
+        
+        try { recetaActual = JSON.parse(recetaStr) || []; } catch (e) { recetaActual = []; }
+
         document.getElementById('modalProductId').value = id;
         document.getElementById('modalProductName').innerText = name;
         document.getElementById('stockModal').style.display = 'flex';
@@ -242,38 +240,21 @@
         document.getElementById('cantidad_aumentar').focus();
     }
 
-    document.getElementById('tableBody').addEventListener('click', function(e) {
-        const button = e.target.closest('[data-stock-product-id]');
-        if (!button) return;
-        openStockModal(
-            button.dataset.stockProductId,
-            button.dataset.stockProductName,
-            JSON.parse(button.dataset.stockRecipe || '[]')
-        );
-    });
-
-    function closeStockModal() {
-        document.getElementById('stockModal').style.display = 'none';
-    }
-
-    document.getElementById('stockModal').addEventListener('click', function(e) {
-        if (e.target === this) { closeStockModal(); }
-    });
+    function closeStockModal() { document.getElementById('stockModal').style.display = 'none'; }
+    document.getElementById('stockModal').addEventListener('click', function(e) { if (e.target === this) closeStockModal(); });
 
     function calcularMateriales() {
         const cantidad = parseInt(document.getElementById('cantidad_aumentar').value) || 0;
         const infoDiv = document.getElementById('materialesInfo');
         const lista = document.getElementById('materialesLista');
-        
-        lista.innerHTML = ''; // Limpiar lista
+        lista.innerHTML = '';
 
         if (cantidad > 0 && recetaActual.length > 0) {
             infoDiv.style.display = 'block';
             recetaActual.forEach(mat => {
-                const cantNecesaria = mat.cantidad * cantidad;
+                const cantNecesaria = (mat.cantidad * cantidad).toFixed(2);
                 const li = document.createElement('li');
-                // mat.nombre_material no está guardado, así que mostramos el ID
-                li.innerHTML = `Material ID <strong>${mat.id_material}</strong>: <span style="color: #e74c3c; font-weight:bold;">${cantNecesaria}</span> unidades.`;
+                li.innerHTML = `Material ID <strong>${mat.id_material}</strong>: <span style="color: #e74c3c; font-weight:bold;">${cantNecesaria} ${mat.unidad || 'u'}</span>`;
                 lista.appendChild(li);
             });
         } else {
@@ -281,7 +262,6 @@
         }
     }
 
-    // --- OTRAS FUNCIONES ---
     function toggleEdit(id) {
         const editRow = document.getElementById(`edit-row-${id}`);
         const dataRow = document.getElementById(`row-${id}`);
@@ -293,23 +273,5 @@
             dataRow.style.backgroundColor = '';
         }
     }
-
-    document.getElementById('searchInput').addEventListener('keyup', function() {
-        const filter = this.value.toLowerCase();
-        const rows = document.getElementById('tableBody').getElementsByTagName('tr');
-        for (let i = 0; i < rows.length; i++) {
-            if (rows[i].id.startsWith('edit-row-')) continue;
-            const cells = rows[i].getElementsByTagName('td');
-            if (cells.length > 0) {
-                const id = cells[0].textContent.toLowerCase();
-                const name = cells[2].textContent.toLowerCase();
-                if (id.includes(filter) || name.includes(filter)) {
-                    rows[i].style.display = '';
-                } else {
-                    rows[i].style.display = 'none';
-                }
-            }
-        }
-    });
 </script>
 {% endblock %}

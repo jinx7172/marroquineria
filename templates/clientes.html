@@ -12,20 +12,15 @@
         <input type="hidden" name="accion" value="crear">
         <div class="input-group">
             <label>Nombre completo *</label>
-            <input type="text" name="nombre" placeholder="Ej: Juan Pérez" required 
-                   pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+" 
-                   title="Solo se permiten letras y espacios.">
+            <input type="text" name="nombre" placeholder="Ej: Juan Pérez" required pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+">
         </div>
         <div class="input-group">
             <label>Teléfono</label>
-            <input type="tel" name="telefono" placeholder="+591 71234567"
-                   pattern="[\d\s\+\-]+" 
-                   title="Solo se permiten números, espacios, + y -.">
+            <input type="tel" name="telefono" placeholder="+591 71234567" pattern="[\d\s\+\-]+">
         </div>
         <div class="input-group">
             <label>Correo Electrónico</label>
             <input type="email" name="email" placeholder="usuario@gmail.com">
-            <small style="color: var(--text-light); font-size: 0.7rem; display:block; margin-top:3px;">Opcional. Si se llena, debe ser @gmail.com</small>
         </div>
         <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Registrar Cliente</button>
     </form>
@@ -38,7 +33,7 @@
     <div class="table-responsive">
         <table>
             <thead>
-                <tr><th>ID</th><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr>
+                <tr><th>ID</th><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Pedidos Especiales</th><th>Acciones</th></tr>
             </thead>
             <tbody id="tableBody">
                 {% for c in clientes %}
@@ -48,7 +43,20 @@
                     <td>{{ c.telefono }}</td>
                     <td>{{ c.email }}</td>
                     <td>
-                        <form method="POST" style="display:inline; background:none; padding:0; border:none; margin:0;" onsubmit="return confirm('¿Estás seguro de que deseas eliminar a este cliente?');">
+                        {% if c.productos_asignados %}
+                            <span style="background: #f1c40f; color: #000; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">
+                                <i class="fa-solid fa-star"></i> {{ c.productos_asignados|length }} asignados
+                            </span>
+                        {% else %}
+                            <span style="color: var(--text-light); font-size: 0.85rem;">Ninguno</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <!-- BOTÓN PARA ASIGNAR PRODUCTOS -->
+                        <button class="btn-icon btn-asignar-productos" title="Asignar Productos" data-cliente-id="{{ c.id_cliente }}" data-cliente-name="{{ c.nombre|e }}" data-asignados="{{ c.productos_asignados|default([])|tojson|forceescape }}" style="color: #3498db;">
+                            <i class="fa-solid fa-briefcase"></i>
+                        </button>
+                        <form method="POST" style="display:inline; margin:0;" onsubmit="return confirm('¿Eliminar cliente?');">
                             <input type="hidden" name="accion" value="eliminar">
                             <input type="hidden" name="cliente_id" value="{{ c.id_cliente }}">
                             <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
@@ -58,24 +66,50 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" style="text-align:center; padding: 30px;">No hay clientes registrados aún.</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding: 30px;">No hay clientes registrados aún.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
+<!-- MODAL PARA ASIGNAR PRODUCTOS -->
+<div id="asignarModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999;">
+    <div style="background: var(--card-bg); padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; max-height: 80vh; display: flex; flex-direction: column; border: 1px solid var(--border-light);">
+        <h3 style="margin-top: 0; color: var(--accent-color);"><i class="fa-solid fa-briefcase"></i> Productos de <span id="modalClienteName"></span></h3>
+        <p style="color: var(--text-light); font-size: 0.9rem;">Marca los productos que este cliente suele pedir para tenerlos destacados al momento de vender.</p>
+        
+        <form method="POST" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+            <input type="hidden" name="accion" value="asignar_productos">
+            <input type="hidden" name="cliente_id" id="modalClienteId" value="">
+            
+            <div style="overflow-y: auto; margin-bottom: 20px; padding-right: 10px; flex: 1;">
+                {% for p in productos %}
+                <label style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid var(--border-light); cursor: pointer;">
+                    <input type="checkbox" name="productos_asignados[]" value="{{ p.id_producto }}" class="prod-checkbox" style="width: 20px; height: 20px; accent-color: var(--accent-color);">
+                    <span style="color: var(--text-main); font-weight: 500;">{{ p.nombre_producto }}</span>
+                </label>
+                {% else %}
+                <p style="text-align: center; color: var(--text-light);">No hay productos en el catálogo.</p>
+                {% endfor %}
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="closeAsignarModal()" style="background: #95a5a6; padding: 10px 20px; border: none; color: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
+                <button type="submit" class="btn-primary" style="padding: 10px 20px;">Guardar Asignación</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
-    // Buscador en tiempo real para Clientes
     document.getElementById('searchInput').addEventListener('keyup', function() {
         const filter = this.value.toLowerCase();
         const rows = document.getElementById('tableBody').getElementsByTagName('tr');
         for (let i = 0; i < rows.length; i++) {
             const cells = rows[i].getElementsByTagName('td');
             if (cells.length > 0) {
-                const id = cells[0].textContent.toLowerCase();
-                const name = cells[1].textContent.toLowerCase();
-                if (id.includes(filter) || name.includes(filter)) {
+                if (cells[0].textContent.toLowerCase().includes(filter) || cells[1].textContent.toLowerCase().includes(filter)) {
                     rows[i].style.display = '';
                 } else {
                     rows[i].style.display = 'none';
@@ -83,5 +117,38 @@
             }
         }
     });
+
+    function openAsignarModal(clienteId, clienteName, asignados) {
+        document.getElementById('modalClienteId').value = clienteId;
+        document.getElementById('modalClienteName').innerText = clienteName;
+        
+        // Desmarcar todos primero
+        const checkboxes = document.querySelectorAll('.prod-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+
+        // Marcar los que ya estaban asignados
+        if (asignados && asignados.length > 0) {
+            asignados.forEach(id => {
+                const cb = document.querySelector(`.prod-checkbox[value="${id}"]`);
+                if (cb) cb.checked = true;
+            });
+        }
+
+        document.getElementById('asignarModal').style.display = 'flex';
+    }
+
+    document.querySelectorAll('.btn-asignar-productos').forEach(button => {
+        button.addEventListener('click', function() {
+            openAsignarModal(
+                this.dataset.clienteId,
+                this.dataset.clienteName,
+                JSON.parse(this.dataset.asignados)
+            );
+        });
+    });
+
+    function closeAsignarModal() {
+        document.getElementById('asignarModal').style.display = 'none';
+    }
 </script>
 {% endblock %}

@@ -7,48 +7,35 @@
 {% endif %}
 
 <div class="form-container" style="max-width: 800px; margin: 0 auto;">
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 15px;">
-        <div>
-            <h3 style="font-size: 1rem; color: var(--text-light); margin:0;"><i class="fa-solid fa-user"></i> Datos del Cliente</h3>
-        </div>
-        <div>
-            <h3 style="font-size: 1rem; color: var(--text-light); margin:0;"><i class="fa-solid fa-box"></i> Datos del Producto</h3>
-        </div>
-    </div>
-
-    <form method="POST">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%;">
+    <form method="POST" id="ventaForm">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="input-group">
                 <label>Seleccionar Cliente *</label>
-                <select name="id_cliente" required>
+                <select name="id_cliente" id="selectCliente" required onchange="filtrarProductos()">
                     <option value="">-- Elegir Cliente --</option>
                     {% for c in clientes %}
-                    <option value="{{ c.id_cliente }}">{{ c.nombre }}</option>
-                    {% else %}
-                    <option value="">No hay clientes registrados</option>
+                    <!-- Guardamos en un data-attribute los productos asignados del cliente -->
+                    <option value="{{ c.id_cliente }}" data-asignados='{{ c.productos_asignados|default([])|tojson }}'>{{ c.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>
             
             <div class="input-group">
                 <label>Seleccionar Producto *</label>
-                <select name="id_producto" required>
+                <select name="id_producto" id="selectProducto" required>
                     <option value="">-- Elegir Producto --</option>
                     {% for p in productos %}
                     <option value="{{ p.id_producto }}">{{ p.nombre_producto }} (${{ p.precio }})</option>
-                    {% else %}
-                    <option value="">No hay productos</option>
                     {% endfor %}
                 </select>
             </div>
         </div>
 
-        <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; margin-top: 10px; width: 100%;">
+        <div style="display: flex; gap: 20px; align-items: flex-end; margin-top: 20px;">
             <div class="input-group" style="flex: 0 0 150px;">
                 <label>Cantidad *</label>
                 <input type="number" min="1" name="cantidad" placeholder="Ej: 2" required>
             </div>
-            
             <button type="submit" class="btn-success" style="flex: 1;">
                 <i class="fa-solid fa-check-circle"></i> Registrar Venta
             </button>
@@ -56,9 +43,7 @@
     </form>
 </div>
 
-<h2 style="margin-top: 40px; border-bottom: 2px solid var(--border-light); padding-bottom: 10px; color: var(--text-main);">
-    <i class="fa-solid fa-clock-rotate-left"></i> Historial de Ventas
-</h2>
+<h2 style="margin-top: 40px; border-bottom: 2px solid var(--border-light); padding-bottom: 10px; color: var(--text-main);">Historial de Ventas</h2>
 
 <div class="table-container">
     <div class="table-responsive">
@@ -83,4 +68,46 @@
         </table>
     </div>
 </div>
+
+<script>
+    // Guardamos las opciones originales de productos
+    const opcionesOriginales = Array.from(document.getElementById('selectProducto').options);
+
+    function filtrarProductos() {
+        const selectCli = document.getElementById('selectCliente');
+        const selectProd = document.getElementById('selectProducto');
+        const selectedOption = selectCli.options[selectCli.selectedIndex];
+        
+        // Limpiamos el select de productos
+        selectProd.innerHTML = '';
+        selectProd.appendChild(opcionesOriginales[0]); // Mantenemos el "-- Elegir Producto --"
+
+        if (!selectedOption.value) {
+            // Si no hay cliente, mostramos todos normal
+            opcionesOriginales.slice(1).forEach(opt => {
+                const newOpt = opt.cloneNode(true);
+                newOpt.text = opt.text; // Sin estrella
+                selectProd.appendChild(newOpt);
+            });
+            return;
+        }
+
+        const asignadosStr = selectedOption.getAttribute('data-asignados');
+        let asignados = [];
+        try { asignados = JSON.parse(asignadosStr) || []; } catch(e) {}
+
+        // Clonamos las opciones y añadimos la estrella a los asignados
+        opcionesOriginales.slice(1).forEach(opt => {
+            const newOpt = opt.cloneNode(true);
+            if (asignados.includes(parseInt(newOpt.value))) {
+                newOpt.text = `⭐ [PEDIDO ESPECIAL] ${opt.text}`;
+                newOpt.style.fontWeight = 'bold';
+                newOpt.style.color = '#f39c12';
+            } else {
+                newOpt.text = opt.text;
+            }
+            selectProd.appendChild(newOpt);
+        });
+    }
+</script>
 {% endblock %}
