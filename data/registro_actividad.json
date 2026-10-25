@@ -1,5 +1,13 @@
 [
     {
+        "id": 3,
+        "fecha": "2026-10-25 13:53:15",
+        "usuario": "Administrador",
+        "accion": "Inventario",
+        "detalles": "Se sumaron 10.0 m a 'Cuero Vacuno Negro'.",
+        "categoria": "materiales"
+    },
+    {
         "id": 2,
         "fecha": "2026-10-25 13:13:07",
         "usuario": "Administrador",

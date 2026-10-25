@@ -2,7 +2,7 @@
     {
         "id_inventario": 1,
         "material": "Cuero Vacuno Negro",
-        "cantidad": 50.0,
+        "cantidad": 60.0,
         "unidad_medida": "m",
         "proveedor": "Cuero Premium SRL"
     },
