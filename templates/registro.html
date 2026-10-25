@@ -1,6 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="section-header"><i class="fa-solid fa-clipboard-list"></i> Registro de Actividad</h1>
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
+    <h1 class="section-header" style="margin: 0; border: none;"><i class="fa-solid fa-clipboard-list"></i> Registro de Actividad</h1>
+    
+    <!-- BOTÓN DE DESCARGAR -->
+    <a href="{{ url_for('exportar_registro') }}" class="btn-primary" style="background: #27ae60; text-decoration: none; display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+        <i class="fa-solid fa-file-excel"></i> Descargar Excel (CSV)
+    </a>
+</div>
+
+<!-- PESTAÑAS DE FILTRO -->
+<div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+    <button class="filtro-btn active" onclick="filtrarTabla('todas', this)" style="padding: 10px 20px; border-radius: 30px; border: 1px solid var(--border-light); background: var(--accent-color); color: white; cursor: pointer; font-weight: bold; transition: 0.2s;">
+        Todo el Registro
+    </button>
+    <button class="filtro-btn" onclick="filtrarTabla('ventas', this)" style="padding: 10px 20px; border-radius: 30px; border: 1px solid var(--border-light); background: var(--card-bg); color: var(--text-main); cursor: pointer; font-weight: bold; transition: 0.2s;">
+        <i class="fa-solid fa-cash-register" style="color: #27ae60;"></i> Ventas
+    </button>
+    <button class="filtro-btn" onclick="filtrarTabla('materiales', this)" style="padding: 10px 20px; border-radius: 30px; border: 1px solid var(--border-light); background: var(--card-bg); color: var(--text-main); cursor: pointer; font-weight: bold; transition: 0.2s;">
+        <i class="fa-solid fa-boxes-packing" style="color: #3498db;"></i> Materiales
+    </button>
+    <button class="filtro-btn" onclick="filtrarTabla('productos', this)" style="padding: 10px 20px; border-radius: 30px; border: 1px solid var(--border-light); background: var(--card-bg); color: var(--text-main); cursor: pointer; font-weight: bold; transition: 0.2s;">
+        <i class="fa-solid fa-industry" style="color: #f39c12;"></i> Fabricación
+    </button>
+</div>
 
 <div class="table-container">
     <div style="padding: 15px 20px; border-bottom: 1px solid var(--border-light);">
@@ -10,24 +33,24 @@
         <table>
             <thead>
                 <tr>
-                    <th>Fecha y Hora</th>
-                    <th>Usuario</th>
-                    <th>Acción</th>
-                    <th>Detalles</th>
+                    <th>Fecha y Hora</th><th>Usuario</th><th>Acción</th><th>Detalles</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
                 {% for log in logs %}
-                <tr>
+                <!-- El atributo data-categoria nos permite filtrar con JS -->
+                <tr data-categoria="{{ log.categoria|default('otros') }}">
                     <td style="white-space: nowrap; font-size: 0.85rem; color: var(--text-light);">{{ log.fecha }}</td>
                     <td><strong>{{ log.usuario }}</strong></td>
                     <td>
                         {% if log.accion == 'Venta' %}
-                            <span style="background:#d4edda; color:#155724; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-cash-register"></i> {{ log.accion }}</span>
+                            <span style="background:#d4edda; color:#155724; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-cash-register"></i> Venta</span>
                         {% elif log.accion == 'Fabricación' %}
-                            <span style="background:#cce5ff; color:#004085; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-industry"></i> {{ log.accion }}</span>
+                            <span style="background:#cce5ff; color:#004085; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-industry"></i> Fabricación</span>
                         {% elif log.accion == 'Producto Nuevo' %}
-                            <span style="background:#fff3cd; color:#856404; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-box"></i> {{ log.accion }}</span>
+                            <span style="background:#fff3cd; color:#856404; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-box"></i> Producto Nuevo</span>
+                        {% elif log.accion == 'Inventario' %}
+                            <span style="background:#e2e3e5; color:#383d41; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-boxes-packing"></i> Inventario</span>
                         {% else %}
                             <span style="background:#e2e3e5; color:#383d41; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;">{{ log.accion }}</span>
                         {% endif %}
@@ -43,6 +66,30 @@
 </div>
 
 <script>
+    function filtrarTabla(categoria, btn) {
+        // 1. Cambiar el estilo visual de los botones
+        document.querySelectorAll('.filtro-btn').forEach(b => {
+            b.style.background = 'var(--card-bg)';
+            b.style.color = 'var(--text-main)';
+            b.classList.remove('active');
+        });
+        btn.style.background = 'var(--accent-color)';
+        btn.style.color = 'white';
+        btn.classList.add('active');
+
+        // 2. Filtrar las filas
+        const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+        for (let i = 0; i < rows.length; i++) {
+            const rowCat = rows[i].getAttribute('data-categoria');
+            if (categoria === 'todas' || rowCat === categoria) {
+                rows[i].style.display = '';
+            } else {
+                rows[i].style.display = 'none';
+            }
+        }
+    }
+
+    // Buscador tradicional
     document.getElementById('searchInput').addEventListener('keyup', function() {
         const filter = this.value.toLowerCase();
         const rows = document.getElementById('tableBody').getElementsByTagName('tr');

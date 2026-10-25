@@ -37,18 +37,15 @@
             </div>
         </div>
 
-        <!-- SELECTOR DINÁMICO DE MATERIALES -->
         <div style="margin-top: 20px; border: 1px dashed var(--border-light); padding: 15px; border-radius: 8px; background: var(--bg-body);">
-            <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--accent-color);"><i class="fa-solid fa-flask"></i> Receta / Materiales necesarios para 1 unidad:</h4>
-            <div id="materialesContainer">
-                <!-- Las filas se agregan con JS -->
-            </div>
+            <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--accent-color);"><i class="fa-solid fa-flask"></i> Receta / Materiales para 1 unidad:</h4>
+            <div id="materialesContainer"></div>
             <button type="button" onclick="agregarMaterial()" style="background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; margin-top: 10px; font-size: 0.85rem;">
                 <i class="fa-solid fa-plus"></i> Añadir Material a la receta
             </button>
         </div>
 
-        <div class="input-group" style="flex: 1; min-width: 200px; display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 20px;">
+        <div class="input-group" style="display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 20px;">
             <input type="checkbox" id="mostrar_como_nuevo" name="mostrar_como_nuevo" style="width: 20px; height: 20px; accent-color: var(--accent-color);">
             <label for="mostrar_como_nuevo" style="margin: 0; font-weight: normal; cursor: pointer; color: var(--text-main);">
                 <i class="fa-solid fa-star" style="color: #f1c40f;"></i> Mostrar en Catálogo como <strong>"NUEVO"</strong>
@@ -67,12 +64,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Imagen</th>
-                    <th>Producto</th>
-                    <th>Precio</th>
-                    <th>Stock</th>
-                    <th>Acciones</th>
+                    <th>ID</th><th>Imagen</th><th>Producto</th><th>Precio</th><th>Stock</th><th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
@@ -80,16 +72,14 @@
                 <tr id="row-{{ p.id_producto }}">
                     <td>{{ p.id_producto }}</td>
                     <td>
-                        {% if p.imagen %}
-                            <img src="{{ p.imagen }}" alt="{{ p.nombre_producto }}" class="product-img">
-                        {% else %}
-                            <span style="color: #ccc;"><i class="fa-regular fa-image"></i></span>
-                        {% endif %}
+                        {% if p.imagen %}<img src="{{ p.imagen }}" class="product-img">
+                        {% else %}<span style="color: #ccc;"><i class="fa-regular fa-image"></i></span>{% endif %}
                     </td>
                     <td><strong>{{ p.nombre_producto }}</strong></td>
                     <td>${{ p.precio }}</td>
                     <td><span class="badge-stock">{{ p.stock if p.stock is defined else 0 }}</span></td>
                     <td>
+                        <!-- BOTÓN DE AÑADIR STOCK -->
                         <button class="btn-icon" onclick="openStockModal(this)" data-id="{{ p.id_producto }}" data-name="{{ p.nombre_producto }}" data-materiales='{{ p.materiales|default([])|tojson }}' title="Aumentar Stock" style="color: #27ae60;">
                             <i class="fa-solid fa-plus-circle" style="font-size: 1.3rem;"></i>
                         </button>
@@ -99,14 +89,11 @@
                         <form method="POST" style="display:inline; margin:0;" onsubmit="return confirm('¿Eliminar producto?');">
                             <input type="hidden" name="accion" value="eliminar">
                             <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
-                            <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
+                            <button type="submit" class="btn-icon" title="Eliminar" style="color: #dc3545;"><i class="fa-solid fa-trash-can"></i></button>
                         </form>
                     </td>
                 </tr>
                 
-                <!-- FILA EDITAR -->
                 <tr id="edit-row-{{ p.id_producto }}" style="display: none; background-color: var(--bg-body);">
                     <td colspan="6">
                         <div style="padding: 15px; border: 1px dashed var(--accent-color); border-radius: 8px; background-color: var(--card-bg);">
@@ -116,34 +103,12 @@
                             <form method="POST" enctype="multipart/form-data" class="inline-form" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
                                 <input type="hidden" name="accion" value="editar">
                                 <input type="hidden" name="producto_id" value="{{ p.id_producto }}">
-                                
-                                <div class="input-group" style="min-width: 150px; flex: 1;">
-                                    <label style="font-size:0.7rem;">Nombre</label>
-                                    <input type="text" name="nombre_producto" value="{{ p.nombre_producto }}" required>
-                                </div>
-                                <div class="input-group" style="min-width: 100px; flex: 0.5;">
-                                    <label style="font-size:0.7rem;">Precio</label>
-                                    <input type="number" step="0.01" name="precio" value="{{ p.precio }}" required>
-                                </div>
-                                <div class="input-group" style="min-width: 150px; flex: 1;">
-                                    <label style="font-size:0.7rem;">Cambiar Imagen</label>
-                                    <input type="file" name="imagen_file" accept="image/*">
-                                </div>
-
-                                <div style="width: 100%; margin-top: 10px;">
-                                    <label style="font-size: 0.8rem; color: var(--text-light); font-weight: bold; margin-bottom: 5px; display: block;">Receta actual:</label>
-                                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                                        {% for mat in p.materiales|default([]) %}
-                                        <div style="background: var(--bg-body); padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-light); font-size: 0.8rem;">
-                                            ID: {{ mat.id_material }} (x{{ mat.cantidad }} {{ mat.unidad|default('u') }})
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-
-                                <div style="display: flex; gap: 10px; align-items: center; padding-bottom: 2px; width: 100%; justify-content: flex-end; margin-top: 10px;">
-                                    <button type="submit" class="btn-primary" style="padding: 5px 15px; height: auto;"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
-                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 5px 15px; height: auto; border: none; color: white; border-radius: 8px; cursor:pointer;">Cancelar</button>
+                                <div class="input-group" style="min-width: 150px; flex: 1;"><label style="font-size:0.7rem;">Nombre</label><input type="text" name="nombre_producto" value="{{ p.nombre_producto }}" required></div>
+                                <div class="input-group" style="min-width: 100px; flex: 0.5;"><label style="font-size:0.7rem;">Precio</label><input type="number" step="0.01" name="precio" value="{{ p.precio }}" required></div>
+                                <div class="input-group" style="min-width: 150px; flex: 1;"><label style="font-size:0.7rem;">Cambiar Imagen</label><input type="file" name="imagen_file" accept="image/*"></div>
+                                <div style="display: flex; gap: 10px; align-items: center; width: 100%; justify-content: flex-end; margin-top: 10px;">
+                                    <button type="submit" class="btn-primary" style="padding: 5px 15px;"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+                                    <button type="button" onclick="toggleEdit('{{ p.id_producto }}')" style="background: #95a5a6; padding: 5px 15px; border: none; color: white; border-radius: 8px; cursor:pointer;">Cancelar</button>
                                 </div>
                             </form>
                         </div>
@@ -157,55 +122,65 @@
     </div>
 </div>
 
-<!-- Modal Aumentar Stock -->
+<!-- MODAL FABRICAR -->
 <div id="stockModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999;">
-    <div style="background: var(--card-bg); padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border-light);">
-        <h3 style="margin-top: 0; color: #27ae60;"><i class="fa-solid fa-industry"></i> Fabricar / Aumentar Stock</h3>
-        <p style="color: var(--text-light);">¿Cuántas unidades nuevas de <strong id="modalProductName" style="color: var(--text-main);"></strong> vas a fabricar?</p>
+    <div style="background: var(--card-bg); padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;">
+        <h3 style="margin-top: 0; color: #27ae60;"><i class="fa-solid fa-industry"></i> Fabricar Unidades</h3>
+        <p style="color: var(--text-light);">¿Cuántas unidades de <strong id="modalProductName" style="color: var(--text-main);"></strong> vas a fabricar?</p>
         
         <form method="POST" id="stockForm">
             <input type="hidden" name="accion" value="aumentar_stock">
             <input type="hidden" name="producto_id" id="modalProductId" value="">
             
             <div class="input-group" style="margin-bottom: 15px;">
-                <label for="cantidad_aumentar" style="color: var(--text-light);">Cantidad a fabricar *</label>
+                <label>Cantidad a fabricar *</label>
                 <input type="number" name="cantidad_aumentar" id="cantidad_aumentar" min="1" placeholder="Ej: 10" required oninput="calcularMateriales()">
             </div>
 
             <div id="materialesInfo" style="display: none; background: var(--bg-body); padding: 15px; border-radius: 8px; border: 1px solid var(--border-light); margin-bottom: 20px;">
-                <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-main);"><i class="fa-solid fa-list-check"></i> Materiales requeridos:</h4>
+                <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-main);"><i class="fa-solid fa-list-check"></i> Materiales a descontar:</h4>
                 <ul id="materialesLista" style="margin: 0; padding-left: 20px; color: var(--text-light); font-size: 0.9rem;"></ul>
             </div>
 
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button type="button" onclick="closeStockModal()" style="background: #95a5a6; padding: 10px 20px; border: none; color: white; border-radius: 8px; cursor: pointer;">Cancelar</button>
-                <button type="submit" class="btn-primary" style="padding: 10px 20px; background: #27ae60;">Confirmar Fabricación</button>
+                <button type="submit" class="btn-primary" style="padding: 10px 20px; background: #27ae60;">Confirmar</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    // --- LÓGICA PARA EL FORMULARIO DE NUEVO PRODUCTO ---
+    // Función para añadir fila de material
     function agregarMaterial() {
         const container = document.getElementById('materialesContainer');
         const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.gap = '10px';
-        row.style.marginBottom = '10px';
-        row.className = 'material-row';
+        row.style.display = 'flex'; row.style.gap = '10px'; row.style.marginBottom = '10px'; row.className = 'material-row';
 
         row.innerHTML = `
             <select name="material_id[]" onchange="actualizarUnidad(this)" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-body); color: var(--text-main);">
                 <option value="">Seleccionar Material...</option>
                 {% for inv in inventario %}
-                    <option value="{{ inv.id_inventario }}" data-unidad="{{ inv.unidad_medida }}">{{ inv.material }} ({{ inv.unidad_medida }})</option>
+                    <option value="{{ inv.id_inventario }}" data-unidad="{{ inv.unidad_medida }}">{{ inv.material }} (Guardado en {{ inv.unidad_medida }})</option>
                 {% endfor %}
             </select>
             <div style="display: flex; align-items: center; background: var(--bg-body); border: 1px solid var(--border-light); border-radius: 6px; overflow: hidden;">
-                <input type="number" step="0.01" min="0.01" name="material_cantidad[]" placeholder="Cant." style="width: 80px; padding: 8px; border: none; background: transparent; color: var(--text-main); outline: none;">
-                <span class="unidad-label" style="padding: 0 10px; font-size: 0.8rem; color: var(--text-light); font-weight: bold; background: rgba(0,0,0,0.1); border-left: 1px solid var(--border-light);">u</span>
-                <input type="hidden" name="material_unidad[]" class="unidad-hidden" value="u">
+                <input type="number" step="0.01" min="0.01" name="material_cantidad[]" placeholder="Cant." style="width: 70px; padding: 8px; border: none; background: transparent; color: var(--text-main); outline: none;">
+                <!-- SELECTOR DE UNIDAD INTELIGENTE -->
+                <select name="material_unidad[]" class="unidad-select" style="padding: 8px; border: none; border-left: 1px solid var(--border-light); background: rgba(0,0,0,0.1); color: var(--text-main); outline: none; font-size: 0.8rem; font-weight:bold;">
+                    <option value="m">m</option>
+                    <option value="cm">cm</option>
+                    <option value="mm">mm</option>
+                    <option value="pies">pies</option>
+                    <option value="yardas">yardas</option>
+                    <option value="u">u</option>
+                    <option value="p">p</option>
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="l">l</option>
+                    <option value="ml">ml</option>
+                    <option value="rollos">rollos</option>
+                </select>
             </div>
             <button type="button" onclick="this.parentElement.remove()" style="background: #e74c3c; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
         `;
@@ -213,42 +188,33 @@
     }
 
     function actualizarUnidad(selectElement) {
+        // Auto-seleccionar la unidad base del inventario si es posible
         const selectedOption = selectElement.options[selectElement.selectedIndex];
-        const unidad = selectedOption.getAttribute('data-unidad') || 'u';
+        const unidadBase = selectedOption.getAttribute('data-unidad');
         const parentDiv = selectElement.parentElement;
-        const label = parentDiv.querySelector('.unidad-label');
-        const hidden = parentDiv.querySelector('.unidad-hidden');
-        label.innerText = unidad;
-        hidden.value = unidad;
+        const unidadSelect = parentDiv.querySelector('.unidad-select');
+        if (unidadBase) unidadSelect.value = unidadBase;
     }
 
-    // --- LÓGICA PARA EL MODAL DE FABRICACIÓN ---
+    // Lógica para el modal de fabricación
     let recetaActual = [];
-
     function openStockModal(btn) {
         const id = btn.getAttribute('data-id');
         const name = btn.getAttribute('data-name');
-        const recetaStr = btn.getAttribute('data-materiales');
-        
-        try { recetaActual = JSON.parse(recetaStr) || []; } catch (e) { recetaActual = []; }
-
+        try { recetaActual = JSON.parse(btn.getAttribute('data-materiales')) || []; } catch (e) { recetaActual = []; }
         document.getElementById('modalProductId').value = id;
         document.getElementById('modalProductName').innerText = name;
         document.getElementById('stockModal').style.display = 'flex';
         document.getElementById('cantidad_aumentar').value = '';
         document.getElementById('materialesInfo').style.display = 'none';
-        document.getElementById('cantidad_aumentar').focus();
     }
-
     function closeStockModal() { document.getElementById('stockModal').style.display = 'none'; }
-    document.getElementById('stockModal').addEventListener('click', function(e) { if (e.target === this) closeStockModal(); });
-
+    
     function calcularMateriales() {
         const cantidad = parseInt(document.getElementById('cantidad_aumentar').value) || 0;
         const infoDiv = document.getElementById('materialesInfo');
         const lista = document.getElementById('materialesLista');
         lista.innerHTML = '';
-
         if (cantidad > 0 && recetaActual.length > 0) {
             infoDiv.style.display = 'block';
             recetaActual.forEach(mat => {
@@ -257,21 +223,14 @@
                 li.innerHTML = `Material ID <strong>${mat.id_material}</strong>: <span style="color: #e74c3c; font-weight:bold;">${cantNecesaria} ${mat.unidad || 'u'}</span>`;
                 lista.appendChild(li);
             });
-        } else {
-            infoDiv.style.display = 'none';
-        }
+        } else { infoDiv.style.display = 'none'; }
     }
 
     function toggleEdit(id) {
         const editRow = document.getElementById(`edit-row-${id}`);
         const dataRow = document.getElementById(`row-${id}`);
-        if (editRow.style.display === 'none') {
-            editRow.style.display = 'table-row';
-            dataRow.style.backgroundColor = 'var(--bg-body)';
-        } else {
-            editRow.style.display = 'none';
-            dataRow.style.backgroundColor = '';
-        }
+        if (editRow.style.display === 'none') { editRow.style.display = 'table-row'; dataRow.style.backgroundColor = 'var(--bg-body)'; }
+        else { editRow.style.display = 'none'; dataRow.style.backgroundColor = ''; }
     }
 </script>
 {% endblock %}

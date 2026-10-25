@@ -14,7 +14,6 @@
                 <select name="id_cliente" id="selectCliente" required onchange="filtrarProductos()">
                     <option value="">-- Elegir Cliente --</option>
                     {% for c in clientes %}
-                    <!-- Guardamos en un data-attribute los productos asignados del cliente -->
                     <option value="{{ c.id_cliente }}" data-asignados='{{ c.productos_asignados|default([])|tojson }}'>{{ c.nombre }}</option>
                     {% endfor %}
                 </select>
@@ -22,16 +21,20 @@
             
             <div class="input-group">
                 <label>Seleccionar Producto *</label>
-                <select name="id_producto" id="selectProducto" required>
-                    <option value="">-- Elegir Producto --</option>
+                <select name="id_producto" id="selectProducto" required onchange="mostrarStock()">
+                    <option value="" data-stock="0">-- Elegir Producto --</option>
                     {% for p in productos %}
-                    <option value="{{ p.id_producto }}">{{ p.nombre_producto }} (${{ p.precio }})</option>
+                    <option value="{{ p.id_producto }}" data-stock="{{ p.stock|default(0) }}">{{ p.nombre_producto }} (${{ p.precio }})</option>
                     {% endfor %}
                 </select>
+                <!-- ETIQUETA DE STOCK DISPONIBLE -->
+                <div id="stockInfo" style="font-size: 0.85rem; color: var(--text-light); margin-top: 5px; display: none;">
+                    <i class="fa-solid fa-box"></i> Disponibles: <strong id="stockNum" style="color: var(--success);">0</strong> uds.
+                </div>
             </div>
         </div>
 
-        <div style="display: flex; gap: 20px; align-items: flex-end; margin-top: 20px;">
+        <div style="display: flex; gap: 20px; align-items: flex-end; margin-top: 15px;">
             <div class="input-group" style="flex: 0 0 150px;">
                 <label>Cantidad *</label>
                 <input type="number" min="1" name="cantidad" placeholder="Ej: 2" required>
@@ -54,11 +57,8 @@
             <tbody>
                 {% for v in ventas %}
                 <tr>
-                    <td>{{ v.id_venta }}</td>
-                    <td>{{ v.id_cliente }}</td>
-                    <td>{{ v.id_producto }}</td>
-                    <td>{{ v.fecha }}</td>
-                    <td>{{ v.cantidad }}</td>
+                    <td>{{ v.id_venta }}</td><td>{{ v.id_cliente }}</td><td>{{ v.id_producto }}</td>
+                    <td>{{ v.fecha }}</td><td>{{ v.cantidad }}</td>
                     <td><strong style="color: var(--success);">${{ v.total }}</strong></td>
                 </tr>
                 {% else %}
@@ -70,25 +70,33 @@
 </div>
 
 <script>
-    // Guardamos las opciones originales de productos
     const opcionesOriginales = Array.from(document.getElementById('selectProducto').options);
+
+    function mostrarStock() {
+        const selectProd = document.getElementById('selectProducto');
+        const selectedOption = selectProd.options[selectProd.selectedIndex];
+        const stock = selectedOption.getAttribute('data-stock');
+        const infoDiv = document.getElementById('stockInfo');
+
+        if (selectedOption.value) {
+            document.getElementById('stockNum').innerText = stock;
+            infoDiv.style.display = 'block';
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    }
 
     function filtrarProductos() {
         const selectCli = document.getElementById('selectCliente');
         const selectProd = document.getElementById('selectProducto');
         const selectedOption = selectCli.options[selectCli.selectedIndex];
         
-        // Limpiamos el select de productos
         selectProd.innerHTML = '';
-        selectProd.appendChild(opcionesOriginales[0]); // Mantenemos el "-- Elegir Producto --"
+        selectProd.appendChild(opcionesOriginales[0]);
 
         if (!selectedOption.value) {
-            // Si no hay cliente, mostramos todos normal
-            opcionesOriginales.slice(1).forEach(opt => {
-                const newOpt = opt.cloneNode(true);
-                newOpt.text = opt.text; // Sin estrella
-                selectProd.appendChild(newOpt);
-            });
+            opcionesOriginales.slice(1).forEach(opt => selectProd.appendChild(opt.cloneNode(true)));
+            mostrarStock();
             return;
         }
 
@@ -96,18 +104,16 @@
         let asignados = [];
         try { asignados = JSON.parse(asignadosStr) || []; } catch(e) {}
 
-        // Clonamos las opciones y añadimos la estrella a los asignados
         opcionesOriginales.slice(1).forEach(opt => {
             const newOpt = opt.cloneNode(true);
             if (asignados.includes(parseInt(newOpt.value))) {
-                newOpt.text = `⭐ [PEDIDO ESPECIAL] ${opt.text}`;
+                newOpt.text = `⭐ [ESPECIAL] ${opt.text}`;
                 newOpt.style.fontWeight = 'bold';
                 newOpt.style.color = '#f39c12';
-            } else {
-                newOpt.text = opt.text;
             }
             selectProd.appendChild(newOpt);
         });
+        mostrarStock();
     }
 </script>
 {% endblock %}

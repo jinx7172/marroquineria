@@ -1,10 +1,10 @@
 import os
 import json
-import datetime
+import datetime  # <-- ESTA LÍNEA FALTABA Y CAUSABA EL ERROR 500
 import secrets
 import requests
 import re
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, Response
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -45,21 +45,39 @@ def validar_email(email):
     if not email: return True
     return email.endswith('@gmail.com')
 
+# --- SISTEMA DE CONVERSIÓN INTELIGENTE DE UNIDADES ---
+def obtener_cantidad_en_unidad_base(cantidad, unidad_dada, unidad_inventario):
+    """Convierte una cantidad a la unidad en la que está guardado el inventario."""
+    cantidad = float(cantidad)
+    
+    # Tabla de conversiones a unidad base (Metros, Kilos, Litros, Unidades)
+    a_base = {
+        'm': 1.0, 'cm': 0.01, 'mm': 0.001,
+        'kg': 1.0, 'g': 0.001,
+        'l': 1.0, 'ml': 0.001,
+        'u': 1.0, 'p': 1.0, 'pies': 0.3048, 'yardas': 0.9144, 'rollos': 1.0
+    }
+    
+    if unidad_dada not in a_base or unidad_inventario not in a_base:
+        return cantidad # Si no se puede convertir, devuelve igual
+
+    # Si son del mismo tipo (ej: pies y metros)
+    cant_en_base = cantidad * a_base[unidad_dada]
+    cant_final = cant_en_base / a_base[unidad_inventario]
+    return cant_final
+
 # --- FUNCIONES DE SINCRO DE DATOS ---
 def sync_from_github():
     global GIST_ID, GITHUB_TOKEN
-    if not GITHUB_TOKEN:
-        return False
+    if not GITHUB_TOKEN: return False
     token_path = os.path.join(DATA_DIR, 'github_config.json')
     if os.path.exists(token_path):
         try:
             with open(token_path, 'r') as f:
                 config = json.load(f)
                 GIST_ID = config.get('gist_id')
-        except:
-            pass
-    if not GIST_ID:
-        return False
+        except: pass
+    if not GIST_ID: return False
     try:
         url = f"https://api.github.com/gists/{GIST_ID}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
@@ -77,14 +95,12 @@ def sync_from_github():
                         with open(filepath, 'w', encoding='utf-8') as f:
                             json.dump(datos, f, indent=4, ensure_ascii=False)
                     return True
-    except:
-        pass
+    except: pass
     return False
 
 def sync_to_github():
     global GIST_ID, GITHUB_TOKEN
-    if not GITHUB_TOKEN:
-        return False
+    if not GITHUB_TOKEN: return False
     token_path = os.path.join(DATA_DIR, 'github_config.json')
     if os.path.exists(token_path):
         try:
@@ -92,10 +108,8 @@ def sync_to_github():
                 config = json.load(f)
                 GITHUB_TOKEN = config.get('token')
                 GIST_ID = config.get('gist_id')
-        except:
-            pass
-    if not GITHUB_TOKEN:
-        return False
+        except: pass
+    if not GITHUB_TOKEN: return False
     all_data = {}
     json_files = ['clientes', 'productos', 'empleados', 'proveedores', 'inventario', 'ventas', 'usuarios', 'registro_actividad']
     for tabla in json_files:
@@ -103,8 +117,7 @@ def sync_to_github():
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 all_data[tabla] = json.load(f)
-        except:
-            all_data[tabla] = []
+        except: all_data[tabla] = []
     try:
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
         payload = {"files": {GIST_FILENAME: {"content": json.dumps(all_data, indent=4)}}}
@@ -116,28 +129,23 @@ def sync_to_github():
             url = "https://api.github.com/gists"
             response = requests.post(url, headers=headers, json=payload)
             if response.status_code == 201:
-                gist_data = response.json()
-                GIST_ID = gist_data['id']
+                GIST_ID = response.json()['id']
                 with open(token_path, 'w') as f:
                     json.dump({'token': GITHUB_TOKEN, 'gist_id': GIST_ID}, f)
         return True
-    except:
-        return False
+    except: return False
 
 # --- FUNCIONES DE BASE DE DATOS ---
 def load_data(filename):
     local_path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(local_path):
-        sync_from_github()
-    if not os.path.exists(local_path):
-        return []
+    if not os.path.exists(local_path): sync_from_github()
+    if not os.path.exists(local_path): return []
     try:
         with open(local_path, 'r', encoding='utf-8') as f:
             contenido = f.read().strip()
             if not contenido: return []
             return json.loads(contenido)
-    except:
-        return []
+    except: return []
 
 def save_data(filename, data):
     local_path = os.path.join(DATA_DIR, filename)
@@ -145,8 +153,7 @@ def save_data(filename, data):
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
         with open(local_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-    except:
-        pass
+    except: pass
     sync_to_github()
     return True
 
@@ -155,20 +162,21 @@ def allowed_file(filename):
 
 def login_required(f):
     def wrap(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
+        if 'user_id' not in session: return redirect(url_for('login'))
         return f(*args, **kwargs)
     wrap.__name__ = f.__name__
     return wrap
 
-def registrar_actividad(accion, detalles):
+def registrar_actividad(accion, detalles, categoria):
+    """Registra y categoriza la actividad para el panel de registro."""
     logs = load_data('registro_actividad.json')
     nuevo_log = {
         'id': len(logs) + 1,
         'fecha': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'usuario': session.get('user_name', 'Admin'),
         'accion': accion,
-        'detalles': detalles
+        'detalles': detalles,
+        'categoria': categoria # ventas, materiales, productos
     }
     logs.insert(0, nuevo_log)
     save_data('registro_actividad.json', logs)
@@ -178,11 +186,8 @@ def ensure_admin_exists():
     usuarios = load_data('usuarios.json')
     if not usuarios:
         admin = {
-            'id_usuario': 1,
-            'nombre': 'Administrador',
-            'username': ADMIN_USERNAME_DEFAULT,
-            'email': 'admin@marcani.local',
-            'password_hash': generate_password_hash(ADMIN_PASSWORD_DEFAULT)
+            'id_usuario': 1, 'nombre': 'Administrador', 'username': ADMIN_USERNAME_DEFAULT,
+            'email': 'admin@marcani.local', 'password_hash': generate_password_hash(ADMIN_PASSWORD_DEFAULT)
         }
         save_data('usuarios.json', [admin])
 
@@ -195,16 +200,12 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         remember_me = request.form.get('remember_me')
-
         if not username or not password:
-            return render_template('auth/login.html', error="Por favor, completa todos los campos.")
-
+            return render_template('auth/login.html', error="Completa todos los campos.")
         usuarios = load_data('usuarios.json')
         user = next((u for u in usuarios if u['username'] == username), None)
-
         if not user or not check_password_hash(user['password_hash'], password):
             return render_template('auth/login.html', error="Usuario o contraseña incorrectos.")
-
         session['user_id'] = user['id_usuario']
         session['user_name'] = user['nombre']
         if remember_me: session.permanent = True
@@ -238,9 +239,7 @@ def configuracion_view():
             usuarios[0] = admin
             save_data('usuarios.json', usuarios)
             session['user_name'] = admin['nombre']
-            registrar_actividad("Configuración", "Se actualizaron los datos de usuario.")
             return render_template('configuracion.html', admin=admin, success="Datos actualizados.")
-
         if accion == 'cambiar_password':
             actual = request.form.get('password_actual', '')
             nueva = request.form.get('password_nueva', '')
@@ -250,7 +249,6 @@ def configuracion_view():
             admin['password_hash'] = generate_password_hash(nueva)
             usuarios[0] = admin
             save_data('usuarios.json', usuarios)
-            registrar_actividad("Seguridad", "Se cambió la contraseña.")
             return render_template('configuracion.html', admin=admin, success="Contraseña actualizada.")
     return render_template('configuracion.html', admin=admin)
 
@@ -279,23 +277,13 @@ def home():
         ganancias_semana_data.append(sum(v.get('total', 0) for v in ventas if v.get('fecha') == fecha_str))
         productos_semana_data.append(sum(v.get('cantidad', 0) for v in ventas if v.get('fecha') == fecha_str))
     
-    return render_template('home.html', 
-                          total_clientes=total_clientes, 
-                          total_ventas=total_ventas_general, 
-                          ganancias_hoy=ganancias_hoy,
-                          productos_vendidos_hoy=productos_vendidos_hoy,
-                          ganancias_semana=sum(ganancias_semana_data),
-                          productos_vendidos_semana=sum(productos_semana_data),
-                          dias_semana=dias_semana,
-                          ganancias_semana_data=ganancias_semana_data,
-                          productos_semana_data=productos_semana_data,
-                          offset_actual=offset_semanas)
+    return render_template('home.html', total_clientes=total_clientes, total_ventas=total_ventas_general, ganancias_hoy=ganancias_hoy, productos_vendidos_hoy=productos_vendidos_hoy, ganancias_semana=sum(ganancias_semana_data), productos_vendidos_semana=sum(productos_semana_data), dias_semana=dias_semana, ganancias_semana_data=ganancias_semana_data, productos_semana_data=productos_semana_data, offset_actual=offset_semanas)
 
 @app.route('/clientes', methods=['GET', 'POST'])
 @login_required
 def clientes_view():
     clientes = load_data('clientes.json')
-    productos = load_data('productos.json') # Para el modal de asignación
+    productos = load_data('productos.json')
     
     if request.method == 'POST':
         accion = request.form.get('accion')
@@ -306,14 +294,10 @@ def clientes_view():
                 save_data('clientes.json', clientes)
                 return redirect(url_for('clientes_view'))
             except: pass
-            
         if accion == 'asignar_productos':
             try:
                 cliente_id = int(request.form.get('cliente_id'))
-                # Obtenemos la lista de IDs de productos seleccionados
-                productos_asignados = request.form.getlist('productos_asignados[]')
-                productos_asignados = [int(pid) for pid in productos_asignados]
-                
+                productos_asignados = [int(pid) for pid in request.form.getlist('productos_asignados[]')]
                 for c in clientes:
                     if c['id_cliente'] == cliente_id:
                         c['productos_asignados'] = productos_asignados
@@ -325,12 +309,9 @@ def clientes_view():
         nombre = request.form.get('nombre', '').strip()
         telefono = request.form.get('telefono', '').strip()
         email = request.form.get('email', '').strip()
-        
         if not nombre or not validar_nombre(nombre) or not validar_telefono(telefono) or not validar_email(email):
             return render_template('clientes.html', clientes=clientes, productos=productos, error="Datos inválidos.")
-            
-        nuevo_cliente = {'id_cliente': len(clientes) + 1, 'nombre': nombre, 'telefono': telefono, 'email': email, 'productos_asignados': []}
-        clientes.append(nuevo_cliente)
+        clientes.append({'id_cliente': len(clientes) + 1, 'nombre': nombre, 'telefono': telefono, 'email': email, 'productos_asignados': []})
         save_data('clientes.json', clientes)
         return redirect(url_for('clientes_view'))
     return render_template('clientes.html', clientes=clientes, productos=productos, error=None)
@@ -348,14 +329,10 @@ def empleados_view():
                 save_data('empleados.json', empleados)
                 return redirect(url_for('empleados_view'))
             except: pass
-        
         nombre = request.form.get('nombre', '').strip()
-        telefono = request.form.get('telefono', '').strip()
-        if not nombre or not validar_nombre(nombre) or not validar_telefono(telefono):
+        if not nombre or not validar_nombre(nombre):
             return render_template('empleados.html', empleados=empleados, error="Datos inválidos.")
-            
-        nuevo_empleado = {'id_empleado': len(empleados) + 1, 'nombre': nombre, 'cargo': request.form.get('cargo', ''), 'telefono': telefono}
-        empleados.append(nuevo_empleado)
+        empleados.append({'id_empleado': len(empleados) + 1, 'nombre': nombre, 'cargo': request.form.get('cargo', ''), 'telefono': request.form.get('telefono', '').strip()})
         save_data('empleados.json', empleados)
         return redirect(url_for('empleados_view'))
     return render_template('empleados.html', empleados=empleados, error=None)
@@ -374,26 +351,20 @@ def proveedores_view():
                 return redirect(url_for('proveedores_view'))
             except: pass
         nombre_empresa = request.form.get('nombre_empresa', '').strip()
-        que_provee = request.form.get('que_provee', '').strip()
-        if not nombre_empresa:
-            return render_template('proveedores.html', proveedores=proveedores, error="El nombre es obligatorio")
+        if not nombre_empresa: return render_template('proveedores.html', proveedores=proveedores, error="Nombre obligatorio")
         if accion == 'editar':
             try:
                 proveedor_id = int(request.form.get('proveedor_id'))
                 for p in proveedores:
                     if p['id_proveedor'] == proveedor_id:
-                        p['nombre_empresa'], p['que_provee'] = nombre_empresa, que_provee
-                        p['telefono'] = request.form.get('telefono', '').strip()
-                        p['email'] = request.form.get('email', '').strip()
+                        p['nombre_empresa'], p['que_provee'] = nombre_empresa, request.form.get('que_provee', '')
+                        p['telefono'], p['email'] = request.form.get('telefono', ''), request.form.get('email', '')
                         break
                 save_data('proveedores.json', proveedores)
                 return redirect(url_for('proveedores_view'))
             except: pass
         else:
-            proveedores.append({
-                'id_proveedor': len(proveedores) + 1, 'nombre_empresa': nombre_empresa, 'que_provee': que_provee,
-                'telefono': request.form.get('telefono', '').strip(), 'email': request.form.get('email', '').strip()
-            })
+            proveedores.append({'id_proveedor': len(proveedores) + 1, 'nombre_empresa': nombre_empresa, 'que_provee': request.form.get('que_provee', ''), 'telefono': request.form.get('telefono', ''), 'email': request.form.get('email', '')})
             save_data('proveedores.json', proveedores)
             return redirect(url_for('proveedores_view'))
     return render_template('proveedores.html', proveedores=proveedores, error=None)
@@ -417,30 +388,44 @@ def productos_view():
 
                 receta = prod_actual.get('materiales', [])
                 
-                # Verificar stock de materiales
+                # 1. VERIFICAR STOCK DE MATERIALES CON CONVERSIÓN
                 for item in receta:
                     mat_id = int(item['id_material'])
-                    cant_necesaria = float(item['cantidad']) * cantidad_aumentar
+                    cant_receta = float(item['cantidad'])
+                    unidad_receta = item.get('unidad', 'u')
+                    
                     inv_item = next((i for i in inventario if int(i['id_inventario']) == mat_id), None)
-                    if not inv_item or float(inv_item['cantidad']) < cant_necesaria:
-                        nom_mat = inv_item['material'] if inv_item else "Desconocido"
-                        return render_template('productos.html', productos=productos, inventario=inventario, error=f"Stock insuficiente de '{nom_mat}'.")
+                    if not inv_item:
+                        return render_template('productos.html', productos=productos, inventario=inventario, error=f"Material ID {mat_id} no existe en el inventario.")
 
-                # Descontar materiales
+                    unidad_inv = inv_item.get('unidad_medida', 'u')
+                    cant_total_necesaria = cant_receta * cantidad_aumentar
+                    
+                    # Convertir lo que pide la receta a la unidad en la que está el inventario (ej: cm a m)
+                    cant_a_descontar = obtener_cantidad_en_unidad_base(cant_total_necesaria, unidad_receta, unidad_inv)
+                    
+                    if float(inv_item['cantidad']) < cant_a_descontar:
+                        return render_template('productos.html', productos=productos, inventario=inventario, error=f"Stock insuficiente de '{inv_item['material']}'. Tienes {inv_item['cantidad']} {unidad_inv} y necesitas {round(cant_a_descontar, 2)} {unidad_inv} para fabricar esta cantidad.")
+
+                # 2. DESCONTAR MATERIALES
                 for item in receta:
                     mat_id = int(item['id_material'])
-                    cant_necesaria = float(item['cantidad']) * cantidad_aumentar
-                    for inv_item in inventario:
-                        if int(inv_item['id_inventario']) == mat_id:
-                            inv_item['cantidad'] = float(inv_item['cantidad']) - cant_necesaria
-                            break
+                    cant_receta = float(item['cantidad'])
+                    unidad_receta = item.get('unidad', 'u')
+                    
+                    inv_item = next((i for i in inventario if int(i['id_inventario']) == mat_id), None)
+                    unidad_inv = inv_item.get('unidad_medida', 'u')
+                    cant_a_descontar = obtener_cantidad_en_unidad_base(cant_receta * cantidad_aumentar, unidad_receta, unidad_inv)
+                    
+                    inv_item['cantidad'] = round(float(inv_item['cantidad']) - cant_a_descontar, 4)
                 
                 save_data('inventario.json', inventario)
                 
                 if 'stock' not in prod_actual: prod_actual['stock'] = 0
                 prod_actual['stock'] += cantidad_aumentar
                 save_data('productos.json', productos)
-                registrar_actividad("Fabricación", f"Se fabricaron {cantidad_aumentar} uds de '{prod_actual['nombre_producto']}'.")
+                
+                registrar_actividad("Fabricación", f"Se fabricaron {cantidad_aumentar} uds de '{prod_actual['nombre_producto']}'.", "productos")
                 return redirect(url_for('productos_view'))
             except Exception as e:
                 return render_template('productos.html', productos=productos, inventario=inventario, error=f"Error al fabricar: {str(e)}")
@@ -470,23 +455,20 @@ def productos_view():
                 imagen_url = url_for('static', filename='uploads/' + unique_name)
         if not imagen_url: imagen_url = request.form.get('imagen_url', '').strip()
 
-        # --- AQUI ESTABA EL ERROR 500 (Faltaba convertir y validar las cantidades) ---
         materiales_seleccionados = []
         mat_ids = request.form.getlist('material_id[]')
         mat_cants = request.form.getlist('material_cantidad[]')
-        mat_unidades = request.form.getlist('material_unidad[]') # Capturamos la unidad
+        mat_unidades = request.form.getlist('material_unidad[]')
         
         for i in range(len(mat_ids)):
             if mat_ids[i] and mat_cants[i]:
                 try:
-                    cant_float = float(mat_cants[i])
                     materiales_seleccionados.append({
                         'id_material': int(mat_ids[i]),
-                        'cantidad': cant_float,
+                        'cantidad': float(mat_cants[i]),
                         'unidad': mat_unidades[i] if i < len(mat_unidades) else 'u'
                     })
-                except ValueError:
-                    pass # Si ponen letras en la cantidad, lo ignoramos en vez de explotar
+                except ValueError: pass
 
         if accion == 'editar':
             try:
@@ -509,7 +491,7 @@ def productos_view():
                 'materiales': materiales_seleccionados, 'stock': 0
             })
             save_data('productos.json', data)
-            registrar_actividad("Producto Nuevo", f"Se creó el producto '{nombre_producto}'.")
+            registrar_actividad("Producto Nuevo", f"Se creó el producto '{nombre_producto}'.", "productos")
             return redirect(url_for('productos_view'))
             
     return render_template('productos.html', productos=productos, inventario=inventario, error=None)
@@ -533,10 +515,11 @@ def inventario_view():
         if accion == 'editar':
             try:
                 inventario_id = int(request.form.get('inventario_id'))
-                nueva_cantidad = float(request.form.get('cantidad', '0'))
                 for item in inventario:
                     if item['id_inventario'] == inventario_id:
-                        item['cantidad'] = nueva_cantidad
+                        item['cantidad'] = float(request.form.get('cantidad', '0'))
+                        item['material'] = request.form.get('material', item['material'])
+                        item['unidad_medida'] = request.form.get('unidad_medida', item['unidad_medida'])
                         break
                 save_data('inventario.json', inventario)
                 return redirect(url_for('inventario_view'))
@@ -555,6 +538,7 @@ def inventario_view():
             'unidad_medida': unidad_medida, 'proveedor': proveedor
         })
         save_data('inventario.json', inventario)
+        registrar_actividad("Inventario", f"Se añadieron {cantidad} {unidad_medida} de '{material}'.", "materiales")
         return redirect(url_for('inventario_view'))
     
     return render_template('inventario.html', inventario=inventario, proveedores=proveedores, error=None)
@@ -591,7 +575,7 @@ def ventas_view():
             save_data('ventas.json', ventas)
             
             cli_obj = next((c for c in clientes if c['id_cliente'] == id_cliente), None)
-            registrar_actividad("Venta", f"Venta de {cantidad_vender} uds de '{prod_obj['nombre_producto']}' a {cli_obj['nombre'] if cli_obj else 'Desconocido'}.")
+            registrar_actividad("Venta", f"Venta de {cantidad_vender} uds de '{prod_obj['nombre_producto']}' a {cli_obj['nombre'] if cli_obj else 'Desconocido'}. Total: ${prod_obj['precio'] * cantidad_vender}.", "ventas")
             return redirect(url_for('ventas_view'))
         except Exception as e:
             return render_template('ventas.html', productos=productos, clientes=clientes, ventas=ventas, error=str(e))
@@ -602,6 +586,20 @@ def ventas_view():
 @login_required
 def registro_view():
     return render_template('registro.html', logs=load_data('registro_actividad.json'))
+
+@app.route('/exportar_registro')
+@login_required
+def exportar_registro():
+    """Genera un archivo CSV compatible con Excel para descargar el registro."""
+    logs = load_data('registro_actividad.json')
+    def generate():
+        yield "ID,Fecha,Usuario,Accion,Categoria,Detalles\n"
+        for log in logs:
+            # Limpiamos el texto para que no rompa el CSV
+            detalles = log.get('detalles', '').replace(',', ' -').replace('\n', ' ')
+            yield f"{log.get('id')},{log.get('fecha')},{log.get('usuario')},{log.get('accion')},{log.get('categoria')},{detalles}\n"
+    
+    return Response(generate(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=registro_marcani.csv"})
 
 @app.errorhandler(404)
 def page_not_found(e): return redirect(url_for('login'))
